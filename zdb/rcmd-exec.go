@@ -1,8 +1,6 @@
 package zdb
 
 import (
-	"fmt"
-	"github.com/robfig/cron"
 	"log"
 	"net"
 	"strconv"
@@ -60,53 +58,11 @@ func execCmd(rcmd []string, conn net.Conn) {
 	case "daly":
 		daly(rcmd, conn)
 	case "timer":
-		timer(rcmd, conn)
+		Timer(rcmd, conn)
 	default:
 		conn.Write([]byte("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]\r\n"))
 		return
 	}
-}
-
-func timer(rcmd []string, conn net.Conn) {
-	ztimer := zTimer[rcmd[1]]
-	if ztimer == nil {
-		ztimer = &ZTimer{
-			conns: []*net.Conn{},
-			topic: rcmd[1],
-		}
-		zTimer[rcmd[1]] = ztimer
-	}
-
-	_conns := make([]*net.Conn, 0)
-	for _, c := range ztimer.conns {
-		if *&conn == *c {
-			continue
-		}
-		_conns = append(_conns, c)
-	}
-	_conns = append(_conns, &conn)
-	ztimer.conns = _conns
-
-	if !strings.EqualFold(ztimer.expr, rcmd[2]) {
-		ztimer.expr = rcmd[2]
-		if ztimer.cron != nil {
-			ztimer.cron.Stop()
-		}
-		ztimer.cron = func() *cron.Cron {
-			c := cron.New()
-			c.AddFunc(ztimer.expr, func() {
-				fmt.Println(time.Now().Second())
-				for _, conn := range ztimer.conns {
-					send(*conn, "timer", ztimer.topic)
-				}
-			})
-			go c.Run()
-			return c
-		}()
-	}
-
-	zTimer[ztimer.topic] = ztimer
-	fmt.Println("xx")
 }
 
 // daly topic valye 100
@@ -229,7 +185,7 @@ func publish(rcmd []string, conn net.Conn) {
 
 	msgs := []string{"message", topic, v}
 	for _, c := range subs {
-		send(*c.conn, msgs...)
+		Send(*c.conn, msgs...)
 		/*_conn.Write([]byte("*3\r\n"))
 		for _, msg := range msgs {
 			_conn.Write([]byte("$" + strconv.Itoa(len(msg)) + "\r\n"))
@@ -240,7 +196,7 @@ func publish(rcmd []string, conn net.Conn) {
 
 var wlock = sync.Mutex{}
 
-func send(conn net.Conn, vs ...string) (err error) {
+func Send(conn net.Conn, vs ...string) (err error) {
 	//chSend <- vs
 	wlock.Lock()
 	defer wlock.Unlock()

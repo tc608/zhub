@@ -3,7 +3,6 @@ package zdb
 import (
 	"bufio"
 	"fmt"
-	"github.com/robfig/cron"
 	"log"
 	"net"
 	"strconv"
@@ -16,7 +15,6 @@ var (
 	zkv     = make(map[string]string)
 	zsub    = make(map[string][]*ConnContext) // topic -- connx[]
 	retOk   = []byte("+OK")
-	zTimer  = make(map[string]*ZTimer)
 	retHelp = []byte(
 		"\n--- zdb help ---\n" +
 			"______  _____   _____  \n|___  / |  _  \\ |  _  \\ \n   / /  | | | | | |_| | \n  / /   | | | | |  _  { \n / /__  | |_| | | |_| | \n/_____| |_____/ |_____/ \n" +
@@ -49,16 +47,9 @@ type ConnContext struct {
 	createTime time.Time
 }
 
-type ZTimer struct {
-	conns []*net.Conn
-	expr  string
-	topic string
-	cron  *cron.Cron
-}
-
 // ======================================================================
 
-// zdb 服务启动
+// ZHub 服务启动
 func ServerStart(host string, port int) {
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
