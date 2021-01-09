@@ -1,4 +1,4 @@
-package zdb
+package _zdb
 
 import (
 	"log"
@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func execCmd(rcmd []string, conn net.Conn) {
+func ExecCmd(rcmd []string, conn net.Conn) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("execCmd Recovered:", r)
+			log.Println("ExecCmd Recovered:", r)
 		}
 	}()
 	if len(rcmd) == 0 {
@@ -58,7 +58,7 @@ func execCmd(rcmd []string, conn net.Conn) {
 	case "daly":
 		daly(rcmd, conn)
 	case "timer":
-		Timer(rcmd, conn)
+		timer(rcmd, conn)
 	default:
 		conn.Write([]byte("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]\r\n"))
 		return

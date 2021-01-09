@@ -9,6 +9,6 @@ type ZTopic struct { //ZTopic
 	chMsg  chan string // 主题消息投递
 }
 
-func createZTopic()  {
+// 主题消息发送
 
-}
+//

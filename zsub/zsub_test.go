@@ -8,6 +8,7 @@ import (
 func TestName(t *testing.T) {
 	sub := ZSub{
 		topics: map[string]*ZTopic{},
+		timers: map[string]*ZTimer{},
 	}
 
 	sub.subscribe(&ZConn{

@@ -14,9 +14,10 @@ import (
 
 var (
 	reconnect    = 0
-	subEvent     = make(map[string]func(v string))
-	chReceive    = make(chan []string, 1000)
+	subFun       = make(map[string]func(v string))
+	timerFun     = make(map[string]func())
 	chSend       = make(chan []string, 1000)
+	chReceive    = make(chan []string, 1000)
 	timerReceive = make(chan []string, 1000)
 )
 
@@ -57,7 +58,7 @@ func (c *Client) reconn() (err error) {
 		} else if err == nil {
 			c.conn = conn
 			go c.receive()
-			for topic, _ := range subEvent {
+			for topic, _ := range subFun {
 				c.subscribes(topic)
 			}
 			break
@@ -72,38 +73,29 @@ func (c *Client) init() {
 		for {
 			select {
 			case vs := <-chReceive:
-				fun := subEvent[vs[1]]
+				fun := subFun[vs[1]]
 				if fun == nil {
 					log.Println("topic received, nothing to do", vs[1], vs[2])
 					continue
 				}
 				fun(vs[2])
 			case vs := <-timerReceive:
-				log.Println("收到 timer 消息 ", vs[1])
+				fun := timerFun[vs[1]]
+				if fun == nil {
+					log.Println("timer received, nothing to do", vs[1])
+					continue
+				}
+				fun()
 			}
 
 		}
-
-		/*for {
-			vs, ok := <-chReceive
-			if !ok {
-				break
-			}
-
-			fun := subEvent[vs[1]]
-			if fun == nil {
-				log.Println("topic received, nothing to do", vs[1], vs[2])
-				continue
-			}
-			fun(vs[2])
-		}*/
 	}()
 
 	go c.receive()
 }
 
 func (c *Client) Subscribe(topic string, fun func(v string)) {
-	subEvent[topic] = fun
+	subFun[topic] = fun
 	c.subscribes(topic)
 }
 
@@ -139,7 +131,8 @@ func (c *Client) Daly(topic string, message string, daly int) error {
 	return nil
 }
 
-func (c *Client) Timer(topic string, expr string) {
+func (c *Client) Timer(topic string, expr string, fun func()) {
+	timerFun[topic] = fun
 	c.send("timer", topic, expr)
 }
 

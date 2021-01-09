@@ -1,4 +1,4 @@
-package zdb
+package _zdb
 
 import (
 	"bufio"
@@ -16,7 +16,7 @@ var (
 	zsub    = make(map[string][]*ConnContext) // topic -- connx[]
 	retOk   = []byte("+OK")
 	retHelp = []byte(
-		"\n--- zdb help ---\n" +
+		"\n--- _zdb help ---\n" +
 			"______  _____   _____  \n|___  / |  _  \\ |  _  \\ \n   / /  | | | | | |_| | \n  / /   | | | | |  _  { \n / /__  | |_| | | |_| | \n/_____| |_____/ |_____/ \n" +
 			"had supported command:\n" +
 			"1. set:\n" +
@@ -33,7 +33,7 @@ var (
 			" eg: incr a\n" +
 			"7. decr:\n" +
 			" eg: decr a\n" +
-			"--- zdb help ---\n")
+			"--- _zdb help ---\n")
 )
 
 // 数据封装
@@ -56,7 +56,7 @@ func ServerStart(host string, port int) {
 		log.Fatal(err)
 		return
 	}
-	log.Printf("zdb started listen on: %s:%d \n", host, port)
+	log.Printf("_zdb started listen on: %s:%d \n", host, port)
 
 	// 启动消息监听处理
 	go func() {
@@ -66,7 +66,7 @@ func ServerStart(host string, port int) {
 				break
 			}
 
-			execCmd(v.Rcmd, *&*v.Conn)
+			ExecCmd(v.Rcmd, *&*v.Conn)
 		}
 	}()
 
@@ -108,7 +108,6 @@ func connHandler(conn net.Conn) {
 	for {
 		rcmd := make([]string, 0)
 		line, _, err := reader.ReadLine()
-		// fmt.Println("line:", string(line)) todo 可使用第一行用于协议头
 		if err != nil {
 			log.Println(err)
 			return

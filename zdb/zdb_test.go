@@ -1,7 +1,7 @@
-package zdb
+package _zdb
 
 import "testing"
 
-func TestName(t *testing.T) {
+func TestService(t *testing.T) {
 	ServerStart("127.0.0.1", 1216)
 }

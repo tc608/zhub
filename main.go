@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"zhub/cli"
-	"zhub/zdb"
+	"zhub/zsub"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	}
 
 	if server {
-		zdb.ServerStart(host, port)
+		zsub.ServerStart(host, port)
 	} else {
 		cli.ClientRun(host, port)
 	}
