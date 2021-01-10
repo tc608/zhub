@@ -2,14 +2,15 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"testing"
 	"time"
 	"zhub/cli"
 )
 
 func TestCli(t *testing.T) {
-	//client, err := cli.Create("39.108.56.246:1216", "")
-	client, err := cli.Create("127.0.0.1:1216", "topic-x")
+	client, err := cli.Create("39.108.56.246:7070", "")
+	//client, err := cli.Create("127.0.0.1:1216", "topic-x")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,12 +25,12 @@ func TestCli(t *testing.T) {
 		log.Println("收到 t------------------x 定时消息")
 	})
 
-	/*go func() {
+	go func() {
 		for i := 0; i < 100000; i++ {
 			client.Publish("a", strconv.Itoa(i))
 			time.Sleep(time.Second)
 		}
-	}()*/
+	}()
 
 	client.Subscribe("a", func(v string) {
 		log.Println("收到主题 a 消息 " + v)

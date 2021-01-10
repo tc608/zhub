@@ -71,6 +71,9 @@ func (c *Client) reconn() (err error) {
 			for topic, _ := range c.subFun {
 				c.subscribes(topic)
 			}
+			for topic, _ := range c.timerFun {
+				c.timer(topic)
+			}
 			break
 		}
 	}
@@ -144,6 +147,11 @@ func (c *Client) Daly(topic string, message string, daly int) error {
 func (c *Client) Timer(topic string, expr string, fun func()) {
 	c.timerFun[topic] = fun
 	c.send("timer", topic, expr)
+}
+
+// todo: save client timer‘s info
+func (c *Client) timer(topic string) {
+	c.send("timer", topic)
 }
 
 /*

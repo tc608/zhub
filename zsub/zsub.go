@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	zsub ZSub = ZSub{
+	zsub = ZSub{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
 	}
@@ -59,32 +59,22 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 		ztopic.groups[c.groupid] = zgroup
 	}
 
-	_conns := make([]*ZConn, 0)
-	for _, conn := range zgroup.conns {
-		if conn == c {
-			continue
-		}
-		_conns = append(_conns, conn)
-	}
-	_conns = append(_conns, c)
-	zgroup.conns = _conns
+	zgroup.conns = c.appendTo(zgroup.conns)
 
-	// 这是 ZConn
-	_topics := c.topics
-	for _, _topic := range c.topics {
-		if strings.EqualFold(_topic, topic) {
-			continue
+	for i, item := range c.topics {
+		if strings.EqualFold(item, topic) {
+			c.topics = append(c.topics[:i], c.topics[:i+1]...)
 		}
-		_topics = append(_topics, _topic)
 	}
-	_topics = append(_topics, topic)
-	c.topics = _topics
+	c.topics = append(c.topics, topic)
 }
 
 /*
 取消订阅：
 */
 func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
+	s.Lock()
+	defer s.Unlock()
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
@@ -95,21 +85,17 @@ func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
 		return
 	}
 
-	_conns := make([]*ZConn, 0)
-	for _, conn := range zgroup.conns {
-		if conn == c {
-			continue
+	for i, item := range zgroup.conns {
+		if item == c {
+			zgroup.conns = append(zgroup.conns[:i], zgroup.conns[:i+1]...)
 		}
-		_conns = append(_conns, c)
 	}
-	zgroup.conns = _conns
 }
 
 /*
-发送主题消息
-1、写入主题消息列表（_zdb）
-2、回复消息写入成功
-3、推送主题消息
+accept topic message
+1、send message to topic's chan
+2、feedback send success to sender, and sending message to topic's subscripts
 */
 func (s *ZSub) publish(topic string, msg string) {
 	s.Lock()
@@ -123,12 +109,12 @@ func (s *ZSub) publish(topic string, msg string) {
 }
 
 func (s *ZSub) close(c *ZConn) {
-	// 订阅
+	// sub
 	for _, topic := range c.topics {
 		s.unsubscribe(c, topic)
 	}
 
-	// 延时
+	// daly
 
 	// timer conn close
 	for _, topic := range c.timers { // fixme: 数据逻辑交叉循环
@@ -140,14 +126,23 @@ func (s *ZSub) close(c *ZConn) {
 	(*c.conn).Close()
 }
 
-// ==================  ZHub 服务 =====================================
+func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
+	for i, item := range arr {
+		if item == c {
+			arr = append(arr[:i], arr[:i+1]...)
+		}
+	}
+	return append(arr, c)
+}
+
+// ==================  ZHub server =====================================
 func ServerStart(host string, port int) {
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	log.Printf("_zdb started listen on: %s:%d \n", host, port)
+	log.Printf("zhub started listen on: %s:%d \n", host, port)
 
 	// 启动消息监听处理
 	go func() {
