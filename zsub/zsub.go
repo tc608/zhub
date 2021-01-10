@@ -6,11 +6,15 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 )
 
 var (
-	zsub ZSub
+	zsub ZSub = ZSub{
+		topics: make(map[string]*ZTopic),
+		timers: make(map[string]*ZTimer),
+	}
 )
 
 type ZSub struct {
@@ -32,16 +36,26 @@ type ZConn struct { //ZConn
 2、加入到对应组别；如果是第一次的消费组 offset从当前 mcount 开始
 3、若有待消费消息启动消费
 */
-func (s ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
+func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
-		ztopic = &ZTopic{groups: map[string]*ZGroup{}}
+		ztopic = &ZTopic{
+			groups: map[string]*ZGroup{},
+			topic:  topic,
+			chMsg:  make(chan string, 100),
+		}
+		ztopic.init()
 		s.topics[topic] = ztopic
 	}
 
 	zgroup := ztopic.groups[c.groupid] //ZGroup
 	if zgroup == nil {
-		zgroup = &ZGroup{conns: []*ZConn{}}
+		zgroup = &ZGroup{
+			conns:  []*ZConn{},
+			ztopic: ztopic,
+			chMsg:  make(chan string, 1000),
+		}
+		zgroup.init()
 		ztopic.groups[c.groupid] = zgroup
 	}
 
@@ -54,12 +68,23 @@ func (s ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 	}
 	_conns = append(_conns, c)
 	zgroup.conns = _conns
+
+	// 这是 ZConn
+	_topics := c.topics
+	for _, _topic := range c.topics {
+		if strings.EqualFold(_topic, topic) {
+			continue
+		}
+		_topics = append(_topics, _topic)
+	}
+	_topics = append(_topics, topic)
+	c.topics = _topics
 }
 
 /*
 取消订阅：
 */
-func (s ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
+func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
@@ -86,20 +111,18 @@ func (s ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
 2、回复消息写入成功
 3、推送主题消息
 */
-func (s ZSub) publish(topic string, message string) {
+func (s *ZSub) publish(topic string, msg string) {
 	s.Lock()
 	defer s.Unlock()
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
 	}
-
-	for _, zgroup := range ztopic.groups {
-		zgroup.chMsg <- message // 不同主题消费独立进行
-	}
+	ztopic.chMsg <- msg
+	ztopic.mcount++
 }
 
-func (s ZSub) close(c *ZConn) {
+func (s *ZSub) close(c *ZConn) {
 	// 订阅
 	for _, topic := range c.topics {
 		s.unsubscribe(c, topic)
@@ -114,6 +137,7 @@ func (s ZSub) close(c *ZConn) {
 			timer.close(c)
 		}
 	}
+	(*c.conn).Close()
 }
 
 // ==================  ZHub 服务 =====================================
@@ -146,14 +170,18 @@ func ServerStart(host string, port int) {
 		}
 		fmt.Println("conn start: ", conn.RemoteAddr())
 
-		go zsub.acceptHandler(&ZConn{conn: &conn})
+		go zsub.acceptHandler(&ZConn{
+			conn:   &conn,
+			topics: []string{},
+			timers: []string{},
+		})
 	}
 }
 
 // 连接处理
-func (s ZSub) acceptHandler(c *ZConn) {
+func (s *ZSub) acceptHandler(c *ZConn) {
 	defer func() {
-		s.close(c) // 关闭连接
+		s.close(c) // close ZConn
 	}()
 
 	reader := bufio.NewReader(*c.conn)

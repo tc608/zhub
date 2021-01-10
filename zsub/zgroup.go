@@ -2,32 +2,27 @@ package zsub
 
 import "sync"
 
-type ZGroup struct { //ZGroup
+type ZGroup struct { // ZGroup
 	sync.Mutex
 	conns  []*ZConn
 	offset int
 	chMsg  chan string // 组消息即时投递
+	ztopic *ZTopic     // 所属topic
 }
 
-func createZGroup(c *ZConn) *ZGroup {
-	zgroup := &ZGroup{
-		conns: []*ZConn{},
-		chMsg: make(chan string, 100),
-	}
-
-	// 开启消息推送
+func (g *ZGroup) init() {
 	go func() {
 		for {
-			msg, ok := <-zgroup.chMsg
+			msg, ok := <-g.chMsg
 			if !ok {
 				break
 			}
 
-			for _, c := range zgroup.conns {
-				(*c.conn).Write([]byte(msg))
-				zgroup.offset++
+			if len(g.conns) == 0 {
+				continue
 			}
+			send(g.conns[0].conn, "message", g.ztopic.topic, msg)
+			g.offset++
 		}
 	}()
-	return zgroup
 }

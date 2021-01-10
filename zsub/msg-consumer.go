@@ -27,11 +27,21 @@ func msgAccept(v Message) {
 	if len(rcmd) == 1 {
 		switch strings.ToLower(rcmd[0]) {
 		default:
-			// subscribe|unsubscribe|daly
-			if strings.Index(rcmd[0], "subscribe") == 0 || strings.Index(rcmd[0], "unsubscribe") == 0 || strings.Index(rcmd[0], "daly") == 0 {
+			// str start with strs anyone
+			var startWithAny = func(str string, strs ...string) bool {
+				for _, str := range strs {
+					if strings.Index(rcmd[0], str) == 0 {
+						return true
+					}
+				}
+				return false
+			}
+
+			arr := []string{"subscribe", "unsubscribe", "daly", "groupid"}
+			if startWithAny(rcmd[0], arr...) {
 				rcmd = strings.Split(rcmd[0], " ")
 			} else {
-				send(c.conn, "-Error: not supported! (tips: send help)")
+				send(c.conn, "-Error: not supported:"+rcmd[0])
 				return
 			}
 		}
@@ -39,8 +49,10 @@ func msgAccept(v Message) {
 
 	cmd := rcmd[0]
 	switch cmd {
+	case "groupid":
+		c.groupid = rcmd[1]
 	case "subscribe":
-		//subscribe x y z
+		// subscribe x y z
 		for _, topic := range rcmd[1:] {
 			zsub.subscribe(c, topic) // todo: 批量一次订阅
 		}
@@ -57,7 +69,7 @@ func msgAccept(v Message) {
 	case "daly":
 		daly(rcmd, c)
 	case "timer":
-		// todo Timer(rcmd, conn)
+		zsub.timer(rcmd, c)
 	default:
 		send(c.conn, "-Error: default not supported:["+strings.Join(rcmd, " ")+"]")
 		return
@@ -86,7 +98,7 @@ func daly(rcmd []string, c *ZConn) {
 
 var wlock = sync.Mutex{}
 
-// 发送消息
+// send message
 func send(conn *net.Conn, vs ...string) error {
 	wlock.Lock()
 	defer wlock.Unlock()

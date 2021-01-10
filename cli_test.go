@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"strconv"
 	"testing"
 	"time"
 	"zhub/cli"
@@ -10,8 +9,7 @@ import (
 
 func TestCli(t *testing.T) {
 	//client, err := cli.Create("39.108.56.246:1216", "")
-	client, err := cli.Create("127.0.0.1:1216", "")
-
+	client, err := cli.Create("127.0.0.1:1216", "topic-x")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,14 +19,44 @@ func TestCli(t *testing.T) {
 		log.Println("收到主题 a 消息 " + v)
 	})
 
-	//
-	client.Timer("t", "* * * * * *")
+	// 定时调度
+	client.Timer("t------------------x", "*/3 * * * * *", func() {
+		log.Println("收到 t------------------x 定时消息")
+	})
 
-	go func() {
-		for i := 0; i < 50000; i++ {
+	/*go func() {
+		for i := 0; i < 100000; i++ {
 			client.Publish("a", strconv.Itoa(i))
 			time.Sleep(time.Second)
 		}
+	}()*/
+
+	client.Subscribe("a", func(v string) {
+		log.Println("收到主题 a 消息 " + v)
+	})
+	client.Daly("a", "x", 3000)
+
+	time.Sleep(time.Hour * 3)
+}
+
+func TestTimer(t *testing.T) {
+	go func() {
+		client, _ := cli.Create("127.0.0.1:1216", "topic-x")
+		client.Timer("t", "*/3 * * * * *", func() {
+			log.Println("=======收到 t 定时消息")
+		})
+
+		client.Timer("t------------------x", "*/3 * * * * *", func() {
+			log.Println("收到 t------------------x 定时消息")
+		})
+	}()
+
+	time.Sleep(time.Second * 5)
+	go func() {
+		client, _ := cli.Create("127.0.0.1:1216", "topic-x")
+		client.Timer("t", "*/5 * * * * *", func() {
+			log.Println("-------收到 t 定时消息")
+		})
 	}()
 
 	time.Sleep(time.Hour * 3)

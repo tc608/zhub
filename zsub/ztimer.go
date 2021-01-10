@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/robfig/cron"
 	"strings"
-	"time"
 )
 
 type ZTimer struct {
@@ -14,7 +13,7 @@ type ZTimer struct {
 	cron  *cron.Cron
 }
 
-func (s ZSub) timer(rcmd []string, c *ZConn) {
+func (s *ZSub) timer(rcmd []string, c *ZConn) {
 	timer := s.timers[rcmd[1]]
 	if timer == nil {
 		timer = &ZTimer{
@@ -29,7 +28,7 @@ func (s ZSub) timer(rcmd []string, c *ZConn) {
 		if conn == c {
 			continue
 		}
-		_conns = append(_conns, c)
+		_conns = append(_conns, conn)
 	}
 	_conns = append(_conns, c)
 	timer.conns = _conns
@@ -42,7 +41,7 @@ func (s ZSub) timer(rcmd []string, c *ZConn) {
 		timer.cron = func() *cron.Cron {
 			c := cron.New()
 			c.AddFunc(timer.expr, func() {
-				fmt.Println(time.Now().Second())
+				//fmt.Println(time.Now().Second())
 				for _, conn := range timer.conns {
 					send(conn.conn, "timer", timer.topic)
 				}
@@ -56,7 +55,11 @@ func (s ZSub) timer(rcmd []string, c *ZConn) {
 	fmt.Println("xx")
 }
 
-func (t ZTimer) close(c *ZConn) {
-	// todo timer zconn
-
+func (t *ZTimer) close(c *ZConn) {
+	for i, conn := range t.conns {
+		if conn.conn == c.conn {
+			t.conns = append(t.conns[:i], t.conns[i+1:]...)
+		}
+	}
+	t.conns = append(t.conns, c)
 }

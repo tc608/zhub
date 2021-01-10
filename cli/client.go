@@ -12,21 +12,21 @@ import (
 	"time"
 )
 
-var (
-	reconnect    = 0
-	subFun       = make(map[string]func(v string))
-	timerFun     = make(map[string]func())
-	chSend       = make(chan []string, 1000)
-	chReceive    = make(chan []string, 1000)
-	timerReceive = make(chan []string, 1000)
-)
-
 type Client struct {
-	wlock      sync.Mutex // 写锁
-	rlock      sync.Mutex // 读锁
-	addr       string     // host:port
-	conn       net.Conn   // socket 连接对象
-	createTime time.Time  // 创建时间
+	wlock sync.Mutex // write lock
+	rlock sync.Mutex // read lock
+
+	addr       string    // host:port
+	conn       net.Conn  // socket conn
+	createTime time.Time // client create time
+	groupid    string    // client group id
+
+	subFun   map[string]func(v string) // subscribe topic and callback function
+	timerFun map[string]func()         // subscribe timer amd callback function
+
+	chSend       chan []string // chan of send message
+	chReceive    chan []string // chan of receive message
+	timerReceive chan []string // chan of timer
 }
 
 func Create(addr string, groupid string) (*Client, error) {
@@ -40,7 +40,14 @@ func Create(addr string, groupid string) (*Client, error) {
 		rlock:      sync.Mutex{},
 		addr:       addr,
 		conn:       conn,
+		groupid:    groupid,
 		createTime: time.Now(),
+
+		subFun:       make(map[string]func(v string)),
+		timerFun:     make(map[string]func()),
+		chSend:       make(chan []string, 100),
+		chReceive:    make(chan []string, 100),
+		timerReceive: make(chan []string, 100),
 	}
 
 	conn.Write([]byte("groupid " + groupid + "\r\n"))
@@ -57,8 +64,11 @@ func (c *Client) reconn() (err error) {
 			continue
 		} else if err == nil {
 			c.conn = conn
+			conn.Write([]byte("groupid " + c.groupid + "\r\n"))
 			go c.receive()
-			for topic, _ := range subFun {
+
+			// 重新订阅
+			for topic, _ := range c.subFun {
 				c.subscribes(topic)
 			}
 			break
@@ -72,15 +82,15 @@ func (c *Client) init() {
 	go func() {
 		for {
 			select {
-			case vs := <-chReceive:
-				fun := subFun[vs[1]]
+			case vs := <-c.chReceive:
+				fun := c.subFun[vs[1]]
 				if fun == nil {
 					log.Println("topic received, nothing to do", vs[1], vs[2])
 					continue
 				}
 				fun(vs[2])
-			case vs := <-timerReceive:
-				fun := timerFun[vs[1]]
+			case vs := <-c.timerReceive:
+				fun := c.timerFun[vs[1]]
 				if fun == nil {
 					log.Println("timer received, nothing to do", vs[1])
 					continue
@@ -95,7 +105,7 @@ func (c *Client) init() {
 }
 
 func (c *Client) Subscribe(topic string, fun func(v string)) {
-	subFun[topic] = fun
+	c.subFun[topic] = fun
 	c.subscribes(topic)
 }
 
@@ -110,7 +120,7 @@ func (c *Client) ping() {
 
 // -------------------------------------- pub-sub --------------------------------------
 /*
-发送 主题消息
+send topic message :
 ---
 *3
 $7
@@ -132,12 +142,12 @@ func (c *Client) Daly(topic string, message string, daly int) error {
 }
 
 func (c *Client) Timer(topic string, expr string, fun func()) {
-	timerFun[topic] = fun
+	c.timerFun[topic] = fun
 	c.send("timer", topic, expr)
 }
 
 /*
-// 订阅主题消息
+// subscribe topic
 ---
 subscribe x y z
 ---
@@ -155,7 +165,11 @@ func (c *Client) subscribes(topics ...string) error {
 	return nil
 }
 
-// 发送 socket 消息
+/*
+send socket message :
+if len(vs) equal 1 will send message `vs[0] + "\r\n"`
+else if len(vs) gt 1 will send message `* + len(vs)+ "\r\n"  +"$"+ len(vs[n])+ "\r\n" + vs[n] + "\r\n" ...`
+*/
 func (c *Client) send(vs ...string) (err error) {
 	//chSend <- vs
 	c.wlock.Lock()
@@ -222,11 +236,11 @@ func (c *Client) receive() {
 			}
 
 			if len(vs) == 3 && strings.EqualFold(vs[0], "message") {
-				chReceive <- vs
+				c.chReceive <- vs
 				continue
 			}
 			if len(vs) == 2 && strings.EqualFold(vs[0], "timer") {
-				timerReceive <- vs
+				c.timerReceive <- vs
 				continue
 			}
 
@@ -256,9 +270,6 @@ func (c *Client) set(key string, value interface{}) error {
 	return nil
 }
 
-/*
-
- */
 func (c *Client) get(key string) string {
 
 	return ""
@@ -267,6 +278,8 @@ func (c *Client) get(key string) string {
 // -------------------------------------- hm --------------------------------------
 
 // ==============================================================================
+
+var reconnect = 0
 
 // client 命令行程序
 func ClientRun(host string, port int) {

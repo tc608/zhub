@@ -1,9 +1,0 @@
-package cli
-
-import (
-	"testing"
-)
-
-func TestClient(t *testing.T) {
-
-}
