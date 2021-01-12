@@ -17,6 +17,10 @@ var (
 	}
 )
 
+func init() {
+	zsub.reloadTimerConfig()
+}
+
 type ZSub struct {
 	sync.Mutex
 	topics map[string]*ZTopic

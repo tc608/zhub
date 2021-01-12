@@ -70,6 +70,14 @@ func msgAccept(v Message) {
 		daly(rcmd, c)
 	case "timer":
 		zsub.timer(rcmd, c)
+	case "cmd":
+		if len(rcmd) == 1 {
+			return
+		}
+		switch rcmd[1] {
+		case "reload-timer-config":
+			zsub.reloadTimerConfig()
+		}
 	default:
 		send(c.conn, "-Error: default not supported:["+strings.Join(rcmd, " ")+"]")
 		return

@@ -144,9 +144,13 @@ func (c *Client) Daly(topic string, message string, daly int) error {
 	return nil
 }
 
-func (c *Client) Timer(topic string, expr string, fun func()) {
+/*func (c *Client) Timer(topic string, expr string, fun func()) {
 	c.timerFun[topic] = fun
 	c.send("timer", topic, expr, "x")
+}*/
+func (c *Client) Timer(topic string, fun func()) {
+	c.timerFun[topic] = fun
+	c.send("timer", topic)
 }
 func (c *Client) TimerSingle(topic string, expr string, fun func()) {
 	c.timerFun[topic] = fun
@@ -156,6 +160,11 @@ func (c *Client) TimerSingle(topic string, expr string, fun func()) {
 // todo: save client timer‘s info
 func (c *Client) timer(topic string) {
 	c.send("timer", topic)
+}
+
+// send cmd
+func (c *Client) Cmd(cmd string) {
+	c.send("cmd", cmd)
 }
 
 /*

@@ -2,7 +2,9 @@ package zsub
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/robfig/cron"
 	"log"
 	"os/exec"
@@ -32,7 +34,9 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 		}
 		s.timers[rcmd[1]] = timer
 	}
-	timer.conns = c.appendTo(timer.conns)
+	if c != nil {
+		timer.conns = c.appendTo(timer.conns)
+	}
 
 	// todo: when timer.expr changed send message to all the timer‘s subscribe
 	if len(rcmd) == 4 && !strings.EqualFold(timer.expr, rcmd[2]) {
@@ -55,8 +59,8 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 		}()
 		timer.configSave()
 	}
-	if len(rcmd) == 4 && !strings.EqualFold("a", rcmd[3]) && !timer.single {
-		timer.single = true
+	if len(rcmd) == 4 && (strings.EqualFold("a", rcmd[3]) != timer.single) {
+		timer.single = strings.EqualFold("a", rcmd[3])
 		timer.configSave()
 	}
 
@@ -104,14 +108,18 @@ func (t *ZTimer) configSave() {
 		log.Println(err)
 	}
 
-	fmt.Println(buf.String())
+	//fmt.Println(buf.String())
 
 	rest, err, s := executeShell(buf.String())
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println("res:", rest)
-	fmt.Println("error-rest:", s)
+	if !strings.EqualFold(rest, "") {
+		fmt.Println("res:", rest)
+	}
+	if !strings.EqualFold(s, "") {
+		fmt.Println("error-rest:", s)
+	}
 }
 
 func executeShell(command string) (string, error, string) {
@@ -122,4 +130,28 @@ func executeShell(command string) (string, error, string) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	return stdout.String(), err, stderr.String()
+}
+
+func (s *ZSub) reloadTimerConfig() {
+	db, err := sql.Open("mysql", "root:*Zhong123098!@tcp(47.111.150.118:6063)/platf_oth?charset=utf8") // dev
+	//db, err := sql.Open("mysql", "root:*Hello@27.com!@tcp(0.0.0.0:6033)/platf_oth?charset=utf8") //  qc
+	//db, err := sql.Open("mysql", "root:*Hello@27.com!@tcp(122.112.180.156:6033)/platf_oth?charset=utf8") // pro
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT t.`name`,t.`expr`,IF(t.`single`=1,'a','x') 'single' FROM tasktimer t WHERE t.`status`=10 ORDER BY t.`timerid`")
+	if err != nil {
+		log.Println(err)
+	}
+
+	for rows.Next() {
+		var name string
+		var expr string
+		var single string
+		rows.Scan(&name, &expr, &single)
+		s.timer([]string{"timer", name, expr, single}, nil) //["timer", topic, expr, a|x]
+	}
 }
