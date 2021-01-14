@@ -167,7 +167,7 @@ func ServerStart(host string, port int) {
 			log.Println(err)
 			continue
 		}
-		fmt.Println("conn start: ", conn.RemoteAddr())
+		log.Println("conn start: ", conn.RemoteAddr())
 
 		go zsub.acceptHandler(&ZConn{
 			conn:   &conn,

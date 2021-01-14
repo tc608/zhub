@@ -8,8 +8,11 @@ import (
 	"github.com/robfig/cron"
 	"log"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type ZTimer struct {
@@ -17,6 +20,7 @@ type ZTimer struct {
 	expr   string
 	topic  string
 	cron   *cron.Cron
+	ticker *time.Ticker
 	single bool
 }
 
@@ -38,30 +42,60 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 		timer.conns = c.appendTo(timer.conns)
 	}
 
-	// todo: when timer.expr changed send message to all the timer‘s subscribe
 	if len(rcmd) == 4 && !strings.EqualFold(timer.expr, rcmd[2]) {
 		timer.expr = rcmd[2]
 		if timer.cron != nil {
 			timer.cron.Stop()
 		}
-		timer.cron = func() *cron.Cron {
-			c := cron.New()
-			c.AddFunc(timer.expr, func() {
-				for _, conn := range timer.conns {
-					err := send(conn.conn, "timer", timer.topic)
-					if timer.single && err == nil {
-						break
-					}
+		if timer.ticker != nil {
+			timer.ticker.Stop()
+		}
+
+		var timerFun = func() {
+			for _, conn := range timer.conns {
+				err := send(conn.conn, "timer", timer.topic)
+				if timer.single && err == nil {
+					break
 				}
-			})
-			go c.Run()
-			return c
-		}()
-		timer.configSave()
+			}
+		}
+
+		r, _ := regexp.Compile("^\\d+[d,H,m,s]$")
+		expr := timer.expr
+		if r.MatchString(expr) {
+			n, _ := strconv.Atoi(expr[:len(expr)-1])
+			_n := time.Duration(n)
+			var ticker *time.Ticker
+			switch expr[len(expr)-1:] {
+			case "d":
+				ticker = time.NewTicker(_n * time.Hour * 24)
+			case "H":
+				ticker = time.NewTicker(_n * time.Hour)
+			case "m":
+				ticker = time.NewTicker(_n * time.Minute)
+			case "s":
+				ticker = time.NewTicker(_n * time.Second)
+			}
+
+			timer.ticker = ticker
+			go func() {
+				for range ticker.C {
+					timerFun()
+				}
+			}()
+		} else {
+			timer.cron = func() *cron.Cron {
+				c := cron.New()
+				c.AddFunc(timer.expr, timerFun)
+				go c.Run()
+				return c
+			}()
+		}
+		//timer.configSave()
 	}
 	if len(rcmd) == 4 && (strings.EqualFold("a", rcmd[3]) != timer.single) {
 		timer.single = strings.EqualFold("a", rcmd[3])
-		timer.configSave()
+		//timer.configSave()
 	}
 
 	s.timers[rcmd[1]] = timer
@@ -134,7 +168,7 @@ func executeShell(command string) (string, error, string) {
 
 func (s *ZSub) reloadTimerConfig() {
 	db, err := sql.Open("mysql", "root:*Zhong123098!@tcp(47.111.150.118:6063)/platf_oth?charset=utf8") // dev
-	//db, err := sql.Open("mysql", "root:*Hello@27.com!@tcp(0.0.0.0:6033)/platf_oth?charset=utf8") //  qc
+	//db, err := sql.Open("mysql", "root:*Zhong123098!@tcp(121.196.17.55:6063)/platf_oth?charset=utf8") //  qc
 	//db, err := sql.Open("mysql", "root:*Hello@27.com!@tcp(122.112.180.156:6033)/platf_oth?charset=utf8") // pro
 	if err != nil {
 		log.Println(err)

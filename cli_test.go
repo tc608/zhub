@@ -48,17 +48,33 @@ func TestCli(t *testing.T) {
 
 func TestTimer(t *testing.T) {
 	go func() {
-		client, _ := cli.Create(addr, "topic-x")
+		client, _ := cli.Create(addr, "topic-1")
 		client.Timer("a", func() {
 			log.Println("client-1 收到 a 的定时消息")
 		})
 	}()
 
-	time.Sleep(time.Second * 5)
 	go func() {
-		client, _ := cli.Create(addr, "topic-x")
+		client, _ := cli.Create(addr, "topic-2")
 		client.Timer("a", func() {
 			log.Println("client-2 收到 a 的定时消息")
+		})
+	}()
+
+	go func() {
+		client, _ := cli.Create(addr, "topic-3")
+		client.Timer("c", func() {
+			log.Println("client-2 收到 c 的定时消息")
+		})
+
+		client.Timer("b", func() {
+			log.Println("client-2 收到 b 的定时消息")
+		})
+		client.Timer("STANDING-DOWNLOAD-GAME", func() {
+			log.Println("client-2 收到 STANDING-DOWNLOAD-GAME 的定时消息")
+		})
+		client.Timer("VIP-EXP-EXPIRE", func() {
+			log.Println("client-2 收到 VIP-EXP-EXPIRE 的定时消息")
 		})
 	}()
 
