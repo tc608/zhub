@@ -84,14 +84,14 @@ func msgAccept(v Message) {
 	}
 }
 
-// daly topic valye 100
+// daly topic 100
 func daly(rcmd []string, c *ZConn) {
-	if len(rcmd) != 4 {
+	if len(rcmd) != 3 {
 		send(c.conn, "-Error: subscribe para number!")
 		return
 	}
 
-	t, err := strconv.ParseInt(rcmd[3], 10, 64)
+	t, err := strconv.ParseInt(rcmd[2], 10, 64)
 	if err != nil {
 		send(c.conn, "-Error: "+strings.Join(rcmd, " "))
 		return
@@ -100,7 +100,8 @@ func daly(rcmd []string, c *ZConn) {
 	timer := time.NewTimer(time.Duration(t) * time.Millisecond)
 	select {
 	case <-timer.C:
-		zsub.publish(rcmd[1], rcmd[2])
+		send(c.conn, "daly", rcmd[1])
+		// zsub.publish(rcmd[1], rcmd[2])
 	}
 }
 

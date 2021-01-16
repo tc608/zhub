@@ -97,17 +97,15 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 		timer.single = strings.EqualFold("a", rcmd[3])
 		//timer.configSave()
 	}
-
-	s.timers[rcmd[1]] = timer
 }
 
-func (t *ZTimer) close(c *ZConn) {
+/*func (t *ZTimer) close(c *ZConn) {
 	for i, item := range t.conns {
 		if item.conn == c.conn {
 			t.conns = append(t.conns[:i], t.conns[i+1:]...)
 		}
 	}
-}
+}*/
 
 func (t *ZTimer) configSave() {
 	tpl, err := template.New("").Parse(`

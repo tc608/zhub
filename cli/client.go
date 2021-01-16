@@ -23,6 +23,7 @@ type Client struct {
 
 	subFun   map[string]func(v string) // subscribe topic and callback function
 	timerFun map[string]func()         // subscribe timer amd callback function
+	dalyFun  map[string]func()
 
 	chSend       chan []string // chan of send message
 	chReceive    chan []string // chan of receive message
@@ -45,6 +46,7 @@ func Create(addr string, groupid string) (*Client, error) {
 
 		subFun:       make(map[string]func(v string)),
 		timerFun:     make(map[string]func()),
+		dalyFun:      make(map[string]func()),
 		chSend:       make(chan []string, 100),
 		chReceive:    make(chan []string, 100),
 		timerReceive: make(chan []string, 100),
@@ -139,8 +141,9 @@ func (c *Client) Publish(topic string, message string) error {
 	return nil
 }
 
-func (c *Client) Daly(topic string, message string, daly int) error {
-	c.send("daly", topic, message, strconv.Itoa(daly))
+func (c *Client) Daly(topic string, daly int, fun func()) error {
+	c.send("daly", topic, strconv.Itoa(daly))
+	c.dalyFun[topic] = fun
 	return nil
 }
 
@@ -165,6 +168,10 @@ func (c *Client) timer(topic string) {
 // send cmd
 func (c *Client) Cmd(cmd string) {
 	c.send("cmd", cmd)
+}
+
+func (c *Client) Close() {
+	c.conn.Close()
 }
 
 /*
@@ -262,6 +269,11 @@ func (c *Client) receive() {
 			}
 			if len(vs) == 2 && strings.EqualFold(vs[0], "timer") {
 				c.timerReceive <- vs
+				continue
+			}
+			if len(vs) == 2 && strings.EqualFold(vs[0], "daly") {
+				c.dalyFun[vs[1]]()
+				delete(c.dalyFun, vs[1])
 				continue
 			}
 

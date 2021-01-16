@@ -41,12 +41,14 @@ type ZConn struct { //ZConn
 3、若有待消费消息启动消费
 */
 func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
+	s.Lock()
+	defer s.Unlock()
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
 		ztopic = &ZTopic{
 			groups: map[string]*ZGroup{},
 			topic:  topic,
-			chMsg:  make(chan string, 100),
+			chMsg:  make(chan string, 10000),
 		}
 		ztopic.init()
 		s.topics[topic] = ztopic
@@ -67,7 +69,7 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 
 	for i, item := range c.topics {
 		if strings.EqualFold(item, topic) {
-			c.topics = append(c.topics[:i], c.topics[:i+1]...)
+			c.topics = append(c.topics[:i], c.topics[i+1:]...)
 		}
 	}
 	c.topics = append(c.topics, topic)
@@ -91,7 +93,7 @@ func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
 
 	for i, item := range zgroup.conns {
 		if item == c {
-			zgroup.conns = append(zgroup.conns[:i], zgroup.conns[:i+1]...)
+			zgroup.conns = append(zgroup.conns[:i], zgroup.conns[i+1:]...)
 		}
 	}
 }
@@ -121,10 +123,18 @@ func (s *ZSub) close(c *ZConn) {
 	// daly
 
 	// timer conn close
+	s.Lock()
+	defer s.Unlock()
 	for _, topic := range c.timers { // fixme: 数据逻辑交叉循环
 		timer := s.timers[topic]
-		if timer != nil {
-			timer.close(c)
+		if timer == nil {
+			continue
+		}
+
+		for i, item := range timer.conns {
+			if item == c {
+				timer.conns = append(timer.conns[:i], timer.conns[i+1:]...)
+			}
 		}
 	}
 	(*c.conn).Close()
@@ -133,7 +143,7 @@ func (s *ZSub) close(c *ZConn) {
 func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
 	for i, item := range arr {
 		if item == c {
-			arr = append(arr[:i], arr[:i+1]...)
+			arr = append(arr[:i], arr[i+1:]...)
 		}
 	}
 	return append(arr, c)
