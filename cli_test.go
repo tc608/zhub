@@ -2,15 +2,15 @@ package main
 
 import (
 	"log"
-	"strconv"
 	"testing"
 	"time"
 	"zhub/cli"
 )
 
 var (
-	addr = "47.111.150.118:6066"
-	//addr = "127.0.0.1:1216"
+	//addr = "47.111.150.118:6066"
+	addr = "127.0.0.1:1216"
+	//addr = "39.108.56.246:1216"
 )
 
 func TestCli(t *testing.T) {
@@ -30,13 +30,6 @@ func TestCli(t *testing.T) {
 	client.Timer("a", func() {
 		log.Println("收到 a 定时消息")
 	})
-
-	go func() {
-		for i := 0; i < 100000; i++ {
-			client.Publish("ax", strconv.Itoa(i))
-			time.Sleep(time.Second)
-		}
-	}()
 
 	client.Subscribe("a", func(v string) {
 		log.Println("收到主题 a 消息 " + v)
@@ -70,8 +63,8 @@ func TestTimer(t *testing.T) {
 		client.Timer("b", func() {
 			log.Println("client-2 收到 b 的定时消息")
 		})
-		client.Timer("STANDING-DOWNLOAD-GAME", func() {
-			log.Println("client-2 收到 STANDING-DOWNLOAD-GAME 的定时消息")
+		client.Timer("LOAD-LIVE-ROOM-UNBANNED", func() {
+			log.Println("client-2 收到 LOAD-LIVE-ROOM-UNBANNED 的定时消息")
 		})
 		client.Timer("VIP-EXP-EXPIRE", func() {
 			log.Println("client-2 收到 VIP-EXP-EXPIRE 的定时消息")

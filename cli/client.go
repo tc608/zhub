@@ -23,7 +23,6 @@ type Client struct {
 
 	subFun   map[string]func(v string) // subscribe topic and callback function
 	timerFun map[string]func()         // subscribe timer amd callback function
-	dalyFun  map[string]func()
 
 	chSend       chan []string // chan of send message
 	chReceive    chan []string // chan of receive message
@@ -46,7 +45,6 @@ func Create(addr string, groupid string) (*Client, error) {
 
 		subFun:       make(map[string]func(v string)),
 		timerFun:     make(map[string]func()),
-		dalyFun:      make(map[string]func()),
 		chSend:       make(chan []string, 100),
 		chReceive:    make(chan []string, 100),
 		timerReceive: make(chan []string, 100),
@@ -141,9 +139,8 @@ func (c *Client) Publish(topic string, message string) error {
 	return nil
 }
 
-func (c *Client) Daly(topic string, daly int, fun func()) error {
-	c.send("daly", topic, strconv.Itoa(daly))
-	c.dalyFun[topic] = fun
+func (c *Client) Daly(topic string, message string, daly int) error {
+	c.send("daly", topic, message, strconv.Itoa(daly))
 	return nil
 }
 
@@ -271,11 +268,11 @@ func (c *Client) receive() {
 				c.timerReceive <- vs
 				continue
 			}
-			if len(vs) == 2 && strings.EqualFold(vs[0], "daly") {
+			/*if len(vs) == 2 && strings.EqualFold(vs[0], "daly") {
 				c.dalyFun[vs[1]]()
 				delete(c.dalyFun, vs[1])
 				continue
-			}
+			}*/
 
 			continue
 		case "+": // +pong, +xxx
@@ -315,25 +312,25 @@ func (c *Client) get(key string) string {
 var reconnect = 0
 
 // client 命令行程序
-func ClientRun(host string, port int) {
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+func ClientRun(addr string) {
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s", addr))
 
 	for {
 		if err != nil {
 			log.Println(err)
 			time.Sleep(time.Second * 3)
-			conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+			conn, err = net.Dial("tcp", fmt.Sprintf("%s", addr))
 			continue
 		}
 
-		fmt.Println(fmt.Sprintf("had connected server: %s:%d", host, port))
+		fmt.Println(fmt.Sprintf("had connected server: %s", addr))
 		break
 	}
 
 	defer func() {
 		if reconnect == 1 {
 			conn.Close()
-			ClientRun(host, port)
+			ClientRun(addr)
 		}
 	}()
 

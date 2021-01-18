@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"zhub/conf"
 )
 
 func msgAccept(v Message) {
@@ -22,7 +23,9 @@ func msgAccept(v Message) {
 		return
 	}
 
-	log.Println("rcmd: " + strings.Join(rcmd, " "))
+	if conf.LogDebug {
+		log.Println("rcmd: " + strings.Join(rcmd, " "))
+	}
 
 	if len(rcmd) == 1 {
 		switch strings.ToLower(rcmd[0]) {
@@ -84,14 +87,14 @@ func msgAccept(v Message) {
 	}
 }
 
-// daly topic 100
+// daly topic value 100 -> publish topic value
 func daly(rcmd []string, c *ZConn) {
-	if len(rcmd) != 3 {
+	if len(rcmd) != 4 {
 		send(c.conn, "-Error: subscribe para number!")
 		return
 	}
 
-	t, err := strconv.ParseInt(rcmd[2], 10, 64)
+	t, err := strconv.ParseInt(rcmd[3], 10, 64)
 	if err != nil {
 		send(c.conn, "-Error: "+strings.Join(rcmd, " "))
 		return
@@ -100,8 +103,7 @@ func daly(rcmd []string, c *ZConn) {
 	timer := time.NewTimer(time.Duration(t) * time.Millisecond)
 	select {
 	case <-timer.C:
-		send(c.conn, "daly", rcmd[1])
-		// zsub.publish(rcmd[1], rcmd[2])
+		zsub.publish(rcmd[1], rcmd[2])
 	}
 }
 

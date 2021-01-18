@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"zhub/conf"
 )
 
 type ZTimer struct {
@@ -165,9 +166,13 @@ func executeShell(command string) (string, error, string) {
 }
 
 func (s *ZSub) reloadTimerConfig() {
-	db, err := sql.Open("mysql", "root:*Zhong123098!@tcp(47.111.150.118:6063)/platf_oth?charset=utf8") // dev
-	//db, err := sql.Open("mysql", "root:*Zhong123098!@tcp(121.196.17.55:6063)/platf_oth?charset=utf8") //  qc
-	//db, err := sql.Open("mysql", "root:*Hello@27.com!@tcp(122.112.180.156:6033)/platf_oth?charset=utf8") // pro
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
+		conf.GetStr("ztimer.db.user", "root"),
+		conf.GetStr("ztimer.db.pwd", "123456"),
+		conf.GetStr("ztimer.db.addr", "127.0.0.1:3306"),
+		conf.GetStr("ztimer.db.database", "zhub"),
+	))
+
 	if err != nil {
 		log.Println(err)
 		return
@@ -177,6 +182,7 @@ func (s *ZSub) reloadTimerConfig() {
 	rows, err := db.Query("SELECT t.`name`,t.`expr`,IF(t.`single`=1,'a','x') 'single' FROM tasktimer t WHERE t.`status`=10 ORDER BY t.`timerid`")
 	if err != nil {
 		log.Println(err)
+		return
 	}
 
 	for rows.Next() {

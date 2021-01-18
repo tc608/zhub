@@ -2,7 +2,6 @@ package zsub
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net"
 	"strconv"
@@ -16,10 +15,6 @@ var (
 		timers: make(map[string]*ZTimer),
 	}
 )
-
-func init() {
-	zsub.reloadTimerConfig()
-}
 
 type ZSub struct {
 	sync.Mutex
@@ -150,13 +145,21 @@ func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
 }
 
 // ==================  ZHub server =====================================
-func ServerStart(host string, port int) {
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+/*
+1、初始化服务
+2、启动服务监听
+*/
+func ServerStart(addr string) {
+
+	// 加载定时调度服务
+	zsub.reloadTimerConfig()
+
+	// 启动服务监听
+	listen, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
-	log.Printf("zhub started listen on: %s:%d \n", host, port)
+	log.Printf("zhub started listen on: %s \n", addr)
 
 	// 启动消息监听处理
 	go func() {
