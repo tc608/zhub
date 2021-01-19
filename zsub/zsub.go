@@ -23,6 +23,7 @@ type ZSub struct {
 }
 
 type ZConn struct { //ZConn
+	sync.Mutex
 	conn    *net.Conn
 	groupid string
 	topics  []string

@@ -21,7 +21,7 @@ func (g *ZGroup) init() {
 			if len(g.conns) == 0 {
 				continue
 			}
-			send(g.conns[0].conn, "message", g.ztopic.topic, msg)
+			g.conns[0].send("message", g.ztopic.topic, msg)
 			g.offset++
 		}
 	}()

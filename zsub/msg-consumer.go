@@ -2,10 +2,8 @@ package zsub
 
 import (
 	"log"
-	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"zhub/conf"
 )
@@ -44,7 +42,7 @@ func msgAccept(v Message) {
 			if startWithAny(rcmd[0], arr...) {
 				rcmd = strings.Split(rcmd[0], " ")
 			} else {
-				send(c.conn, "-Error: not supported:"+rcmd[0])
+				c.send("-Error: not supported:" + rcmd[0])
 				return
 			}
 		}
@@ -65,7 +63,7 @@ func msgAccept(v Message) {
 		}
 	case "publish":
 		if len(rcmd) != 3 {
-			send(c.conn, "-Error: publish para number!")
+			c.send("-Error: publish para number!")
 		} else {
 			zsub.publish(rcmd[1], rcmd[2])
 		}
@@ -82,7 +80,7 @@ func msgAccept(v Message) {
 			zsub.reloadTimerConfig()
 		}
 	default:
-		send(c.conn, "-Error: default not supported:["+strings.Join(rcmd, " ")+"]")
+		c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 		return
 	}
 }
@@ -90,13 +88,13 @@ func msgAccept(v Message) {
 // daly topic value 100 -> publish topic value
 func daly(rcmd []string, c *ZConn) {
 	if len(rcmd) != 4 {
-		send(c.conn, "-Error: subscribe para number!")
+		c.send("-Error: subscribe para number!")
 		return
 	}
 
 	t, err := strconv.ParseInt(rcmd[3], 10, 64)
 	if err != nil {
-		send(c.conn, "-Error: "+strings.Join(rcmd, " "))
+		c.send("-Error: " + strings.Join(rcmd, " "))
 		return
 	}
 
@@ -107,12 +105,10 @@ func daly(rcmd []string, c *ZConn) {
 	}
 }
 
-var wlock = sync.Mutex{}
-
 // send message
-func send(conn *net.Conn, vs ...string) error {
-	wlock.Lock()
-	defer wlock.Unlock()
+func (c *ZConn) send(vs ...string) error {
+	c.Lock()
+	defer c.Unlock()
 
 	var bytes []byte
 
@@ -126,6 +122,6 @@ func send(conn *net.Conn, vs ...string) error {
 		}
 		bytes = []byte(data)
 	}
-	_, err := (*conn).Write(bytes)
+	_, err := (*c.conn).Write(bytes)
 	return err
 }
