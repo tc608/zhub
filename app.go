@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"strings"
 	"zhub/cli"
@@ -22,14 +23,23 @@ func main() {
 			confPath = arg[3:]
 		}
 	}
+	conf.Load(confPath)
+	if len(addr) == 0 {
+		addr = conf.GetStr("service.zhub.servers", "127.0.0.1:1216")
+	}
+
+	if len(os.Args) == 3 && strings.EqualFold(os.Args[1], "-r") {
+		if cli, err := cli.Create(addr, ""); err != nil {
+			log.Println(err)
+		} else {
+			cli.Cmd("reload-timer-config")
+			cli.Close()
+		}
+		return
+	}
 
 	if server {
-		conf.Load(confPath)
-		if len(addr) == 0 {
-			addr = conf.GetStr("service.zhub.servers", "127.0.0.1:1216")
-		}
-		// 服务进程启动
-		zsub.ServerStart(addr)
+		zsub.ServerStart(addr) // 服务进程启动
 	} else {
 		cli.ClientRun(addr)
 	}
