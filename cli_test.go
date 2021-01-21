@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"testing"
 	"time"
 	"zhub/cli"
@@ -41,13 +42,21 @@ func TestCli(t *testing.T) {
 
 func TestTimer(t *testing.T) {
 	go func() {
+		client, _ := cli.Create(addr, "topic-2")
+
+		client.Subscribe("ax", func(v string) {
+			log.Println("topic-1-ax: " + v)
+		})
+	}()
+	go func() {
 		client, _ := cli.Create(addr, "topic-1")
-		client.Timer("a", func() {
-			log.Println("client-1 收到 a 的定时消息")
+
+		client.Subscribe("ax", func(v string) {
+			log.Println("topic-2-ax: " + v)
 		})
 	}()
 
-	go func() {
+	/*go func() {
 		client, _ := cli.Create(addr, "topic-2")
 		client.Timer("a", func() {
 			log.Println("client-2 收到 a 的定时消息")
@@ -69,7 +78,7 @@ func TestTimer(t *testing.T) {
 		client.Timer("VIP-EXP-EXPIRE", func() {
 			log.Println("client-2 收到 VIP-EXP-EXPIRE 的定时消息")
 		})
-	}()
+	}()*/
 
 	time.Sleep(time.Hour * 3)
 }
@@ -88,8 +97,9 @@ func TestPublish(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	}
-
-	client.Publish("ax", "a")
+	for i := 0; i < 30_0000; i++ {
+		client.Publish("ax", strconv.Itoa(i))
+	}
 
 	time.Sleep(time.Second)
 }

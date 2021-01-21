@@ -50,7 +50,7 @@ func Create(addr string, groupid string) (*Client, error) {
 		timerReceive: make(chan []string, 100),
 	}
 
-	conn.Write([]byte("groupid " + groupid + "\r\n"))
+	client.send("groupid " + groupid)
 	client.init()
 	return &client, err
 }
@@ -64,15 +64,15 @@ func (c *Client) reconn() (err error) {
 			continue
 		} else if err == nil {
 			c.conn = conn
-			conn.Write([]byte("groupid " + c.groupid + "\r\n"))
+			c.send("groupid " + c.groupid)
 			go c.receive()
 
 			// 重新订阅
 			for topic, _ := range c.subFun {
-				c.subscribes(topic)
+				c.Subscribe(topic, nil)
 			}
 			for topic, _ := range c.timerFun {
-				c.timer(topic)
+				c.Timer(topic, nil)
 			}
 			break
 		}
@@ -100,16 +100,23 @@ func (c *Client) init() {
 				}
 				fun()
 			}
-
 		}
 	}()
 
 	go c.receive()
 }
 
+/*
+// subscribe topic
+---
+subscribe x y z
+---
+*/
 func (c *Client) Subscribe(topic string, fun func(v string)) {
-	c.subFun[topic] = fun
-	c.subscribes(topic)
+	c.send("subscribe " + topic)
+	if fun != nil {
+		c.subFun[topic] = fun
+	}
 }
 
 /*
@@ -135,13 +142,15 @@ $24
 ---
 */
 func (c *Client) Publish(topic string, message string) error {
-	c.send("publish", topic, message)
-	return nil
+	return c.send("publish", topic, message)
+}
+
+func (c *Client) Broadcast(topic string, message string) error {
+	return c.send("broadcast", topic, message)
 }
 
 func (c *Client) Daly(topic string, message string, daly int) error {
-	c.send("daly", topic, message, strconv.Itoa(daly))
-	return nil
+	return c.send("daly", topic, message, strconv.Itoa(daly))
 }
 
 /*func (c *Client) Timer(topic string, expr string, fun func()) {
@@ -149,16 +158,9 @@ func (c *Client) Daly(topic string, message string, daly int) error {
 	c.send("timer", topic, expr, "x")
 }*/
 func (c *Client) Timer(topic string, fun func()) {
-	c.timerFun[topic] = fun
-	c.send("timer", topic)
-}
-func (c *Client) TimerSingle(topic string, expr string, fun func()) {
-	c.timerFun[topic] = fun
-	c.send("timer", topic, expr, "a")
-}
-
-// todo: save client timer‘s info
-func (c *Client) timer(topic string) {
+	if fun != nil {
+		c.timerFun[topic] = fun
+	}
 	c.send("timer", topic)
 }
 
@@ -171,13 +173,7 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-/*
-// subscribe topic
----
-subscribe x y z
----
-*/
-func (c *Client) subscribes(topics ...string) error {
+/*func (c *Client) subscribes(topics ...string) error {
 	if len(topics) == 0 {
 		return nil
 	}
@@ -188,7 +184,7 @@ func (c *Client) subscribes(topics ...string) error {
 	}
 	c.send(messages)
 	return nil
-}
+}*/
 
 /*
 send socket message :

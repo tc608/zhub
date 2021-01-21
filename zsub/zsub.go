@@ -17,7 +17,7 @@ var (
 )
 
 type ZSub struct {
-	sync.Mutex
+	sync.RWMutex
 	topics map[string]*ZTopic
 	timers map[string]*ZTimer
 }
@@ -99,15 +99,34 @@ accept topic message
 1、send message to topic's chan
 2、feedback send success to sender, and sending message to topic's subscripts
 */
-func (s *ZSub) publish(topic string, msg string) {
-	s.Lock()
-	defer s.Unlock()
+func (s *ZSub) publish(topic, msg string) {
+	s.RLock()
+	defer s.RUnlock()
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
 	}
 	ztopic.chMsg <- msg
 	ztopic.mcount++
+}
+
+/*
+send broadcast message
+*/
+func (s *ZSub) broadcast(topic, msg string) {
+	s.RLock()
+	defer s.RUnlock()
+
+	ztopic := s.topics[topic] //ZTopic
+	if ztopic == nil {
+		return
+	}
+
+	for _, group := range ztopic.groups {
+		for _, conn := range group.conns {
+			conn.send("message", topic, msg)
+		}
+	}
 }
 
 func (s *ZSub) close(c *ZConn) {

@@ -67,6 +67,8 @@ func msgAccept(v Message) {
 		} else {
 			zsub.publish(rcmd[1], rcmd[2])
 		}
+	case "broadcast":
+		zsub.broadcast(rcmd[1], rcmd[2])
 	case "daly":
 		daly(rcmd, c)
 	case "timer":
