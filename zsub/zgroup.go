@@ -1,28 +1,33 @@
 package zsub
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type ZGroup struct { // ZGroup
 	sync.Mutex
 	conns  []*ZConn
-	offset int
+	offset int32
 	chMsg  chan string // 组消息即时投递
 	ztopic *ZTopic     // 所属topic
 }
 
-func (g *ZGroup) init() {
-	go func() {
+func (g *ZGroup) appendTo(c *ZConn) {
+	c.appendTo(g.conns)
+	go func() { // 每个连接开启一个携程发送数据
 		for {
 			msg, ok := <-g.chMsg
 			if !ok {
 				break
 			}
 
-			if len(g.conns) == 0 {
-				continue
+			err := c.send("message", g.ztopic.topic, msg)
+			if err != nil { // 失败处理
+				g.chMsg <- msg
+				break
 			}
-			g.conns[0].send("message", g.ztopic.topic, msg)
-			g.offset++
+			atomic.AddInt32(&g.offset, 1)
 		}
 	}()
 }

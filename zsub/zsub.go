@@ -53,15 +53,15 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 	zgroup := ztopic.groups[c.groupid] //ZGroup
 	if zgroup == nil {
 		zgroup = &ZGroup{
-			conns:  []*ZConn{},
+			//conns:  []*ZConn{},
 			ztopic: ztopic,
 			chMsg:  make(chan string, 1000),
 		}
-		zgroup.init()
 		ztopic.groups[c.groupid] = zgroup
 	}
 
-	zgroup.conns = c.appendTo(zgroup.conns)
+	//zgroup.conns = c.appendTo(zgroup.conns)
+	zgroup.appendTo(c)
 
 	for i, item := range c.topics {
 		if strings.EqualFold(item, topic) {
@@ -156,6 +156,9 @@ func (s *ZSub) close(c *ZConn) {
 }
 
 func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
+	if arr == nil {
+		arr = make([]*ZConn, 0)
+	}
 	for i, item := range arr {
 		if item == c {
 			arr = append(arr[:i], arr[i+1:]...)
