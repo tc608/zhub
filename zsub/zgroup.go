@@ -17,17 +17,21 @@ func (g *ZGroup) appendTo(c *ZConn) {
 	c.appendTo(g.conns)
 	go func() { // 每个连接开启一个携程发送数据
 		for {
-			msg, ok := <-g.chMsg
-			if !ok {
-				break
-			}
+			select {
+			case msg, ok := <-g.chMsg:
+				if !ok {
+					return
+				}
 
-			err := c.send("message", g.ztopic.topic, msg)
-			if err != nil { // 失败处理
-				g.chMsg <- msg
-				break
+				err := c.send("message", g.ztopic.topic, msg)
+				if err != nil { // 失败处理
+					g.chMsg <- msg
+					return
+				}
+				atomic.AddInt32(&g.offset, 1)
+			case <-c.stoped:
+				return
 			}
-			atomic.AddInt32(&g.offset, 1)
 		}
 	}()
 }

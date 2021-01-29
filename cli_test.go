@@ -10,9 +10,9 @@ import (
 
 var (
 	//addr = "47.111.150.118:6066"
-	//addr = "127.0.0.1:1216"
+	addr = "127.0.0.1:1216"
 	//addr = "122.112.180.156:6066"
-	addr = "39.108.56.246:1216"
+	//addr = "39.108.56.246:1216"
 )
 
 func TestCli(t *testing.T) {
@@ -45,14 +45,14 @@ func TestTimer(t *testing.T) {
 	go func() {
 		client, _ := cli.Create(addr, "topic-1")
 
-		client.Subscribe("ax", func(v string) {
+		client.Subscribe("ax1", func(v string) {
 			log.Println("topic-1-ax: " + v)
 		})
 	}()
 	go func() {
 		client, _ := cli.Create(addr, "topic-1")
 
-		client.Subscribe("ax", func(v string) {
+		client.Subscribe("ax1", func(v string) {
 			log.Println("topic-2-ax: " + v)
 		})
 	}()
@@ -60,12 +60,12 @@ func TestTimer(t *testing.T) {
 	go func() {
 		client, _ := cli.Create(addr, "topic-1")
 
-		client.Subscribe("ax", func(v string) {
+		client.Subscribe("ax1", func(v string) {
 			log.Println("topic-3-ax: " + v)
 		})
 	}()
 
-	go func() {
+	/*go func() {
 		client, _ := cli.Create(addr, "topic-1")
 
 		client.Subscribe("ax", func(v string) {
@@ -78,7 +78,7 @@ func TestTimer(t *testing.T) {
 		client.Subscribe("ax", func(v string) {
 			log.Println("topic-5-ax: " + v)
 		})
-	}()
+	}()*/
 
 	/*go func() {
 		client, _ := cli.Create(addr, "topic-2")
@@ -121,9 +121,8 @@ func TestPublish(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	}
-	for i := 0; i < 100_0000; i++ {
-		client.Publish("ax", strconv.Itoa(i))
-		//time.Sleep(time.Second)
+	for i := 0; i < 10000; i++ {
+		client.Publish("ax1", strconv.Itoa(i))
 	}
 
 	time.Sleep(time.Second)

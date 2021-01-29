@@ -28,6 +28,16 @@ type ZConn struct { //ZConn
 	groupid string
 	topics  []string
 	timers  []string // 订阅、定时调度分别创建各自连接
+	stoped  chan int // 关闭信号量
+}
+
+func NewZConn(conn *net.Conn) *ZConn {
+	return &ZConn{
+		conn:   conn,
+		topics: []string{},
+		timers: []string{},
+		stoped: make(chan int, 0),
+	}
 }
 
 /*
@@ -130,6 +140,7 @@ func (s *ZSub) broadcast(topic, msg string) {
 }
 
 func (s *ZSub) close(c *ZConn) {
+	close(c.stoped)
 	// sub
 	for _, topic := range c.topics {
 		s.unsubscribe(c, topic)
@@ -205,11 +216,8 @@ func ServerStart(addr string) {
 		}
 		log.Println("conn start: ", conn.RemoteAddr())
 
-		go zsub.acceptHandler(&ZConn{
-			conn:   &conn,
-			topics: []string{},
-			timers: []string{},
-		})
+		zConn := NewZConn(&conn)
+		go zsub.acceptHandler(zConn)
 	}
 }
 
