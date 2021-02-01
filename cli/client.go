@@ -149,8 +149,8 @@ func (c *Client) Broadcast(topic string, message string) error {
 	return c.send("broadcast", topic, message)
 }
 
-func (c *Client) Daly(topic string, message string, daly int) error {
-	return c.send("daly", topic, message, strconv.Itoa(daly))
+func (c *Client) Delay(topic string, message string, delay int) error {
+	return c.send("delay", topic, message, strconv.Itoa(delay))
 }
 
 /*func (c *Client) Timer(topic string, expr string, fun func()) {
@@ -264,9 +264,9 @@ func (c *Client) receive() {
 				c.timerReceive <- vs
 				continue
 			}
-			/*if len(vs) == 2 && strings.EqualFold(vs[0], "daly") {
-				c.dalyFun[vs[1]]()
-				delete(c.dalyFun, vs[1])
+			/*if len(vs) == 2 && strings.EqualFold(vs[0], "delay") {
+				c.delayFun[vs[1]]()
+				delete(c.delayFun, vs[1])
 				continue
 			}*/
 

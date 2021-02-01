@@ -38,7 +38,7 @@ func msgAccept(v Message) {
 				return false
 			}
 
-			arr := []string{"subscribe", "unsubscribe", "daly", "groupid"}
+			arr := []string{"subscribe", "unsubscribe", "delay", "groupid"}
 			if startWithAny(rcmd[0], arr...) {
 				rcmd = strings.Split(rcmd[0], " ")
 			} else {
@@ -69,8 +69,8 @@ func msgAccept(v Message) {
 		}
 	case "broadcast":
 		zsub.broadcast(rcmd[1], rcmd[2])
-	case "daly":
-		zsub.daly(rcmd, c)
+	case "delay":
+		zsub.delay(rcmd, c)
 	case "timer":
 		zsub.timer(rcmd, c)
 	case "cmd":
@@ -87,8 +87,8 @@ func msgAccept(v Message) {
 	}
 }
 
-// daly topic value 100 -> publish topic value
-func (s *ZSub) daly(rcmd []string, c *ZConn) {
+// delay topic value 100 -> publish topic value
+func (s *ZSub) delay(rcmd []string, c *ZConn) {
 	s.Lock()
 	defer s.Unlock()
 	if len(rcmd) != 4 {

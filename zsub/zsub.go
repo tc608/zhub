@@ -149,7 +149,7 @@ func (s *ZSub) close(c *ZConn) {
 		s.unsubscribe(c, topic)
 	}
 
-	// daly
+	// delay
 
 	// timer conn close
 	s.Lock()

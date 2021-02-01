@@ -36,7 +36,7 @@ func TestCli(t *testing.T) {
 	client.Subscribe("a", func(v string) {
 		log.Println("收到主题 a 消息 " + v)
 	})
-	client.Daly("a", "x", 3000)
+	client.Delay("a", "x", 3000)
 
 	time.Sleep(time.Hour * 3)
 }
