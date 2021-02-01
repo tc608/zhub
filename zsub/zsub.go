@@ -7,12 +7,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
 	zsub = ZSub{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
+		delays: make(map[string]*time.Timer),
 	}
 )
 
@@ -20,6 +22,7 @@ type ZSub struct {
 	sync.RWMutex
 	topics map[string]*ZTopic
 	timers map[string]*ZTimer
+	delays map[string]*time.Timer
 }
 
 type ZConn struct { //ZConn
