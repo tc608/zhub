@@ -165,8 +165,15 @@ func (c *Client) Timer(topic string, fun func()) {
 }
 
 // send cmd
-func (c *Client) Cmd(cmd string) {
-	c.send("cmd", cmd)
+func (c *Client) Cmd(cmd ...string) {
+	if len(cmd) == 1 {
+		c.send("cmd", cmd[0])
+	} else if len(cmd) > 1 {
+		cmdx := make([]string, 0)
+		cmdx = append(cmdx, "cmd")
+		cmdx = append(cmdx, cmd...)
+		c.send(cmdx...)
+	}
 }
 
 func (c *Client) Close() {
