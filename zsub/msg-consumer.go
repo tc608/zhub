@@ -106,7 +106,7 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 	if timer != nil {
 		if t == -1 {
 			timer.Stop()
-			s.delays[rcmd[1]+"-"+rcmd[2]] = nil
+			delete(s.delays, rcmd[1]+"-"+rcmd[2])
 			return
 		}
 		timer.Reset(time.Duration(t) * time.Millisecond)
@@ -117,7 +117,7 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 			select {
 			case <-timer.C:
 				zsub.publish(rcmd[1], rcmd[2])
-				s.delays[rcmd[1]+"-"+rcmd[2]] = nil
+				delete(s.delays, rcmd[1]+"-"+rcmd[2])
 			}
 		}()
 	}

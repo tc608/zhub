@@ -31,6 +31,8 @@ func (g *ZGroup) appendTo(c *ZConn) {
 				atomic.AddInt32(&g.offset, 1)
 			case <-c.stoped:
 				return
+			case <-c.substoped[g.ztopic.topic]:
+				return
 			}
 		}
 	}()

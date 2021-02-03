@@ -119,6 +119,11 @@ func (c *Client) Subscribe(topic string, fun func(v string)) {
 	}
 }
 
+func (c *Client) Unsubscribe(topic string) {
+	c.send("unsubscribe " + topic)
+	delete(c.subFun, topic)
+}
+
 /*
 ---
 ping

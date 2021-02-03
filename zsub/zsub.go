@@ -27,19 +27,21 @@ type ZSub struct {
 
 type ZConn struct { //ZConn
 	sync.Mutex
-	conn    *net.Conn
-	groupid string
-	topics  []string
-	timers  []string // 订阅、定时调度分别创建各自连接
-	stoped  chan int // 关闭信号量
+	conn      *net.Conn
+	groupid   string
+	topics    []string
+	timers    []string            // 订阅、定时调度分别创建各自连接
+	stoped    chan int            // 关闭信号量
+	substoped map[string]chan int // 关闭信号量
 }
 
 func NewZConn(conn *net.Conn) *ZConn {
 	return &ZConn{
-		conn:   conn,
-		topics: []string{},
-		timers: []string{},
-		stoped: make(chan int, 0),
+		conn:      conn,
+		topics:    []string{},
+		timers:    []string{},
+		stoped:    make(chan int, 0),
+		substoped: make(map[string]chan int),
 	}
 }
 
@@ -74,6 +76,7 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 	}
 
 	//zgroup.conns = c.appendTo(zgroup.conns)
+	c.substoped[topic] = make(chan int, 0)
 	zgroup.appendTo(c)
 
 	for i, item := range c.topics {
@@ -90,6 +93,7 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
 	s.Lock()
 	defer s.Unlock()
+	close(c.substoped[topic])
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
@@ -226,6 +230,11 @@ func ServerStart(addr string) {
 
 // 连接处理
 func (s *ZSub) acceptHandler(c *ZConn) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("acceptHandler Recovered:", r)
+		}
+	}()
 	defer func() {
 		s.close(c) // close ZConn
 	}()
