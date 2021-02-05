@@ -75,8 +75,6 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 		ztopic.groups[c.groupid] = zgroup
 	}
 
-	//zgroup.conns = c.appendTo(zgroup.conns)
-	c.substoped[topic] = make(chan int, 0)
 	zgroup.appendTo(c)
 
 	for i, item := range c.topics {

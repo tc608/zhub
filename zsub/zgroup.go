@@ -14,8 +14,16 @@ type ZGroup struct { // ZGroup
 }
 
 func (g *ZGroup) appendTo(c *ZConn) {
+	topic := g.ztopic.topic
+
+	// report subscribe topic check
+	if c.substoped[topic] != nil {
+		return
+	}
+
+	c.substoped[topic] = make(chan int, 0)
 	c.appendTo(g.conns)
-	go func() { // 每个连接开启一个携程发送数据
+	go func() { // create new goroutine consumer message
 		for {
 			select {
 			case msg, ok := <-g.chMsg:
@@ -23,7 +31,7 @@ func (g *ZGroup) appendTo(c *ZConn) {
 					return
 				}
 
-				err := c.send("message", g.ztopic.topic, msg)
+				err := c.send("message", topic, msg)
 				if err != nil { // 失败处理
 					g.chMsg <- msg
 					return
@@ -31,7 +39,8 @@ func (g *ZGroup) appendTo(c *ZConn) {
 				atomic.AddInt32(&g.offset, 1)
 			case <-c.stoped:
 				return
-			case <-c.substoped[g.ztopic.topic]:
+			case <-c.substoped[topic]:
+				delete(c.substoped, topic)
 				return
 			}
 		}
