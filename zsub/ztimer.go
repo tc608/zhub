@@ -178,8 +178,7 @@ func (s *ZSub) reloadTimerConfig() {
 		return
 	}
 	defer db.Close()
-
-	rows, err := db.Query("SELECT t.`name`,t.`expr`,IF(t.`single`=1,'a','x') 'single' FROM tasktimer t WHERE t.`status`=10 ORDER BY t.`timerid`")
+	rows, err := db.Query("SELECT t.`name`, IF(t.`status`=10,t.`expr`,''), IF(t.`single`=1,'a','x') 'single' FROM tasktimer t ORDER BY t.`timerid`")
 	if err != nil {
 		log.Println(err)
 		return
