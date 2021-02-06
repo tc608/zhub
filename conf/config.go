@@ -12,6 +12,7 @@ import (
 var (
 	config   = make(map[string]string)
 	LogDebug bool
+	DataDir  = ""
 )
 
 func Load(path string) {
@@ -54,6 +55,8 @@ func Load(path string) {
 	}
 
 	LogDebug = strings.EqualFold(config["log.level"], "debug")
+	DataDir = GetStr("data.dir", "data")
+	os.MkdirAll(DataDir, os.ModeDir)
 }
 
 func GetStr(key string, def string) string {

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"zhub/conf"
 )
 
 var (
@@ -38,18 +39,20 @@ func Append(str string, fileName string) {
 func (s *ZSub) saveDelay() {
 	s.Lock()
 	defer s.Unlock()
-	err := os.Remove("delay.z")
+	err := os.Remove(conf.DataDir + "/delay.z")
 	if err != nil {
 		log.Println(err)
 	}
 
+	var str string
 	for _, delay := range s.delays {
-		Append(fmt.Sprintf("%s %s %s\n", delay.topic, delay.value, strconv.FormatInt(delay.exectime.Unix(), 10)), "delay.z")
+		str += fmt.Sprintf("%s %s %s\n", delay.topic, delay.value, strconv.FormatInt(delay.exectime.Unix(), 10))
 	}
+	Append(str, conf.DataDir+"/delay.z")
 }
 
 func (s *ZSub) reloadDelay() {
-	f, err := os.Open("delay.z")
+	f, err := os.Open(conf.DataDir + "/delay.z")
 	if err != nil {
 		return
 	}
