@@ -21,9 +21,10 @@ func (g *ZGroup) appendTo(c *ZConn) {
 		return
 	}
 
+	// create new goroutine consumer message
 	c.substoped[topic] = make(chan int, 0)
 	c.appendTo(g.conns)
-	go func() { // create new goroutine consumer message
+	go func() {
 		for {
 			select {
 			case msg, ok := <-g.chMsg:

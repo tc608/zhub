@@ -4,17 +4,18 @@ import (
 	"bufio"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+	"zhub/conf"
 )
 
 var (
 	zsub = ZSub{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
-		delays: make(map[string]*time.Timer),
+		delays: make(map[string]*ZDelay),
 	}
 )
 
@@ -22,7 +23,7 @@ type ZSub struct {
 	sync.RWMutex
 	topics map[string]*ZTopic
 	timers map[string]*ZTimer
-	delays map[string]*time.Timer
+	delays map[string]*ZDelay
 }
 
 type ZConn struct { //ZConn
@@ -190,8 +191,11 @@ func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
 */
 func ServerStart(addr string) {
 
-	// 加载定时调度服务
-	zsub.reloadTimerConfig()
+	conf.GetStr("data.dir", "data")
+
+	// 重新加载[定时、延时]
+	go zsub.reloadTimerConfig()
+	go zsub.reloadDelay()
 
 	// 启动服务监听
 	listen, err := net.Listen("tcp", addr)
@@ -199,19 +203,6 @@ func ServerStart(addr string) {
 		log.Fatal(err)
 	}
 	log.Printf("zhub started listen on: %s \n", addr)
-
-	// 启动消息监听处理
-	go func() {
-		for {
-			v, ok := <-chanMessages
-			if !ok {
-				break
-			}
-
-			// 事件消费
-			msgAccept(v)
-		}
-	}()
 
 	for {
 		conn, err := listen.Accept()
@@ -264,7 +255,12 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 			continue
 		}
 
-		// 接收消息 zdb fixme： 细节暴露太多
-		chanMessages <- Message{Conn: c, Rcmd: rcmd}
+		msgAccept(Message{Conn: c, Rcmd: rcmd})
 	}
+}
+
+func (s *ZSub) shutdown() {
+	s.saveDelay()
+	s.Lock()
+	os.Exit(0)
 }

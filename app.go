@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 	"zhub/cli"
 	"zhub/conf"
 	"zhub/zsub"
@@ -29,11 +30,17 @@ func main() {
 	}
 
 	if len(os.Args) == 3 && strings.EqualFold(os.Args[1], "-r") {
-		if cli, err := cli.Create(addr, ""); err != nil {
+		if cli, err := cli.Create(addr, "group-admin"); err != nil {
 			log.Println(err)
 		} else {
-			cli.Cmd("reload-timer-config")
+			switch os.Args[2] {
+			case "timer":
+				cli.Cmd("reload-timer-config")
+			case "shutdown":
+				cli.Cmd("shutdown")
+			}
 			cli.Close()
+			time.Sleep(time.Millisecond * 10)
 		}
 		return
 	}

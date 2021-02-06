@@ -8,10 +8,17 @@ import (
 	"zhub/conf"
 )
 
+type ZDelay struct {
+	topic    string
+	value    string
+	exectime time.Time
+	timer    *time.Timer
+}
+
 func msgAccept(v Message) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("ExecCmd Recovered:", r)
+			log.Println("msgAccept Recovered:", r)
 		}
 	}()
 	c := v.Conn
@@ -80,6 +87,11 @@ func msgAccept(v Message) {
 		switch rcmd[1] {
 		case "reload-timer-config":
 			zsub.reloadTimerConfig()
+		case "shutdown":
+			if !strings.EqualFold(c.groupid, "group-admin") {
+				return
+			}
+			zsub.shutdown()
 		}
 	default:
 		c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
@@ -90,7 +102,10 @@ func msgAccept(v Message) {
 // delay topic value 100 -> publish topic value
 func (s *ZSub) delay(rcmd []string, c *ZConn) {
 	s.Lock()
-	defer s.Unlock()
+	defer func() {
+		s.Unlock()
+		s.saveDelay()
+	}()
 	if len(rcmd) != 4 {
 		c.send("-Error: subscribe para number!")
 		return
@@ -102,20 +117,25 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 		return
 	}
 
-	timer := s.delays[rcmd[1]+"-"+rcmd[2]]
-	if timer != nil {
+	delay := s.delays[rcmd[1]+"-"+rcmd[2]]
+	if delay != nil {
 		if t == -1 {
-			timer.Stop()
+			delay.timer.Stop()
 			delete(s.delays, rcmd[1]+"-"+rcmd[2])
 			return
 		}
-		timer.Reset(time.Duration(t) * time.Millisecond)
+		delay.timer.Reset(time.Duration(t) * time.Millisecond)
 	} else {
-		timer = time.NewTimer(time.Duration(t) * time.Millisecond)
-		s.delays[rcmd[1]+"-"+rcmd[2]] = timer
+		delay := &ZDelay{
+			topic:    rcmd[1],
+			value:    rcmd[2],
+			exectime: time.Now().Add(time.Duration(t) * time.Millisecond),
+			timer:    time.NewTimer(time.Duration(t) * time.Millisecond),
+		}
+		s.delays[rcmd[1]+"-"+rcmd[2]] = delay
 		go func() {
 			select {
-			case <-timer.C:
+			case <-delay.timer.C:
 				zsub.publish(rcmd[1], rcmd[2])
 				delete(s.delays, rcmd[1]+"-"+rcmd[2])
 			}
