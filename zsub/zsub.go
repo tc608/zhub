@@ -90,8 +90,8 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 取消订阅：
 */
 func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
-	s.Lock()
-	defer s.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	close(c.substoped[topic])
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {

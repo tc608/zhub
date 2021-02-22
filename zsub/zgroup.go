@@ -14,6 +14,8 @@ type ZGroup struct { // ZGroup
 }
 
 func (g *ZGroup) appendTo(c *ZConn) {
+	c.Lock()
+	defer c.Unlock()
 	topic := g.ztopic.topic
 
 	// report subscribe topic check
@@ -22,7 +24,8 @@ func (g *ZGroup) appendTo(c *ZConn) {
 	}
 
 	// create new goroutine consumer message
-	c.substoped[topic] = make(chan int, 0)
+	unsubChan := make(chan int, 0)
+	c.substoped[topic] = unsubChan
 	c.appendTo(g.conns)
 	go func() {
 		for {
@@ -40,7 +43,9 @@ func (g *ZGroup) appendTo(c *ZConn) {
 				atomic.AddInt32(&g.offset, 1)
 			case <-c.stoped:
 				return
-			case <-c.substoped[topic]:
+			case <-unsubChan:
+				c.Lock()
+				defer c.Unlock()
 				delete(c.substoped, topic)
 				return
 			}
