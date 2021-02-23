@@ -190,8 +190,17 @@ func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
 2、启动服务监听
 */
 func ServerStart(addr string) {
-
 	conf.GetStr("data.dir", "data")
+
+	go func() {
+		for {
+			fun, ok := <-funChan
+			if !ok {
+				break
+			}
+			fun()
+		}
+	}()
 
 	// 重新加载[定时、延时]
 	go zsub.reloadTimerConfig()
