@@ -35,7 +35,7 @@ func main() {
 		} else {
 			switch os.Args[2] {
 			case "timer":
-				cli.Cmd("reload-timer-config")
+				cli.Cmd("reload-timer")
 			case "shutdown":
 				cli.Cmd("shutdown")
 			}

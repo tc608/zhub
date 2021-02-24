@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	zsub = ZSub{
+	zsub = &ZSub{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
 		delays: make(map[string]*ZDelay),
@@ -52,10 +52,10 @@ func NewZConn(conn *net.Conn) *ZConn {
 2、加入到对应组别；如果是第一次的消费组 offset从当前 mcount 开始
 3、若有待消费消息启动消费
 */
-func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
-	s.Lock()
-	defer s.Unlock()
-	ztopic := s.topics[topic] //ZTopic
+func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
+	zsub.Lock()
+	defer zsub.Unlock()
+	ztopic := zsub.topics[topic] //ZTopic
 	if ztopic == nil {
 		ztopic = &ZTopic{
 			groups: map[string]*ZGroup{},
@@ -63,7 +63,7 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 			chMsg:  make(chan string, 10000),
 		}
 		ztopic.init()
-		s.topics[topic] = ztopic
+		zsub.topics[topic] = ztopic
 	}
 
 	zgroup := ztopic.groups[c.groupid] //ZGroup
@@ -89,11 +89,11 @@ func (s *ZSub) subscribe(c *ZConn, topic string) { // 新增订阅 zconn{}
 /*
 取消订阅：
 */
-func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
+func (c *ZConn) unsubscribe(topic string) { // 取消订阅 zconn{}
 	c.Lock()
 	defer c.Unlock()
 	close(c.substoped[topic])
-	ztopic := s.topics[topic] //ZTopic
+	ztopic := zsub.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
 	}
@@ -110,55 +110,39 @@ func (s *ZSub) unsubscribe(c *ZConn, topic string) { // 取消订阅 zconn{}
 	}
 }
 
-/*
-accept topic message
-1、send message to topic's chan
-2、feedback send success to sender, and sending message to topic's subscripts
-*/
-func (s *ZSub) publish(topic, msg string) {
-	s.RLock()
-	defer s.RUnlock()
-	ztopic := s.topics[topic] //ZTopic
-	if ztopic == nil {
-		return
-	}
-	ztopic.chMsg <- msg
-	ztopic.mcount++
-}
+// send message
+func (c *ZConn) send(vs ...string) error {
+	c.Lock()
+	defer c.Unlock()
 
-/*
-send broadcast message
-*/
-func (s *ZSub) broadcast(topic, msg string) {
-	s.RLock()
-	defer s.RUnlock()
+	var bytes []byte
 
-	ztopic := s.topics[topic] //ZTopic
-	if ztopic == nil {
-		return
-	}
-
-	for _, group := range ztopic.groups {
-		for _, conn := range group.conns {
-			conn.send("message", topic, msg)
+	if len(vs) == 1 {
+		bytes = []byte(vs[0] + "\r\n")
+	} else if len(vs) > 1 {
+		data := "*" + strconv.Itoa(len(vs)) + "\r\n"
+		for _, v := range vs {
+			data += "$" + strconv.Itoa(len(v)) + "\r\n"
+			data += v + "\r\n"
 		}
+		bytes = []byte(data)
 	}
+	_, err := (*c.conn).Write(bytes)
+	return err
 }
 
-func (s *ZSub) close(c *ZConn) {
+func (c *ZConn) close() {
 	close(c.stoped)
 	// sub
 	for _, topic := range c.topics {
-		s.unsubscribe(c, topic)
+		c.unsubscribe(topic)
 	}
 
-	// delay
-
 	// timer conn close
-	s.Lock()
-	defer s.Unlock()
+	zsub.Lock()
+	defer zsub.Unlock()
 	for _, topic := range c.timers { // fixme: 数据逻辑交叉循环
-		timer := s.timers[topic]
+		timer := zsub.timers[topic]
 		if timer == nil {
 			continue
 		}
@@ -203,7 +187,7 @@ func ServerStart(addr string) {
 	}()
 
 	// 重新加载[定时、延时]
-	go zsub.reloadTimerConfig()
+	go zsub.reloadTimer()
 	go zsub.reloadDelay()
 
 	// 启动服务监听
@@ -234,7 +218,7 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 		}
 	}()
 	defer func() {
-		s.close(c) // close ZConn
+		c.close() // close ZConn
 	}()
 
 	reader := bufio.NewReader(*c.conn)
@@ -265,6 +249,41 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 		}
 
 		msgAccept(Message{Conn: c, Rcmd: rcmd})
+	}
+}
+
+/*
+accept topic message
+1、send message to topic's chan
+2、feedback send success to sender, and sending message to topic's subscripts
+*/
+func (s *ZSub) publish(topic, msg string) {
+	s.RLock()
+	defer s.RUnlock()
+	ztopic := s.topics[topic] //ZTopic
+	if ztopic == nil {
+		return
+	}
+	ztopic.chMsg <- msg
+	ztopic.mcount++
+}
+
+/*
+send broadcast message
+*/
+func (s *ZSub) broadcast(topic, msg string) {
+	s.RLock()
+	defer s.RUnlock()
+
+	ztopic := s.topics[topic] //ZTopic
+	if ztopic == nil {
+		return
+	}
+
+	for _, group := range ztopic.groups {
+		for _, conn := range group.conns {
+			conn.send("message", topic, msg)
+		}
 	}
 }
 

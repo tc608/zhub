@@ -2,20 +2,11 @@ package zsub
 
 import (
 	"log"
-	"strconv"
 	"strings"
-	"time"
 	"zhub/conf"
 )
 
 var funChan = make(chan func(), 1000)
-
-type ZDelay struct {
-	topic    string
-	value    string
-	exectime time.Time
-	timer    *time.Timer
-}
 
 func msgAccept(v Message) {
 	defer func() {
@@ -58,16 +49,18 @@ func msgAccept(v Message) {
 	}
 
 	cmd := rcmd[0]
-	if strings.EqualFold(cmd, "groupid") {
+	switch cmd {
+	case "groupid":
 		c.groupid = rcmd[1]
 		return
-	} else if strings.EqualFold(cmd, "publish") {
+	case "publish":
 		if len(rcmd) != 3 {
 			c.send("-Error: publish para number!")
 		} else {
 			zsub.publish(rcmd[1], rcmd[2])
 		}
 		return
+	default:
 	}
 
 	// 内部执行指令 加入执行队列
@@ -76,11 +69,11 @@ func msgAccept(v Message) {
 		case "subscribe":
 			// subscribe x y z
 			for _, topic := range rcmd[1:] {
-				zsub.subscribe(c, topic) // todo: 批量一次订阅
+				c.subscribe(topic) // todo: 批量一次订阅
 			}
 		case "unsubscribe":
 			for _, topic := range rcmd[1:] {
-				zsub.unsubscribe(c, topic)
+				c.unsubscribe(topic)
 			}
 		case "broadcast":
 			zsub.broadcast(rcmd[1], rcmd[2])
@@ -93,8 +86,8 @@ func msgAccept(v Message) {
 				return
 			}
 			switch rcmd[1] {
-			case "reload-timer-config":
-				zsub.reloadTimerConfig()
+			case "reload-timer":
+				zsub.reloadTimer()
 			case "shutdown":
 				if !strings.EqualFold(c.groupid, "group-admin") {
 					return
@@ -106,69 +99,4 @@ func msgAccept(v Message) {
 			return
 		}
 	}
-}
-
-// delay topic value 100 -> publish topic value
-func (s *ZSub) delay(rcmd []string, c *ZConn) {
-	s.Lock()
-	defer func() {
-		s.Unlock()
-		s.saveDelay()
-	}()
-	if len(rcmd) != 4 {
-		c.send("-Error: subscribe para number!")
-		return
-	}
-
-	t, err := strconv.ParseInt(rcmd[3], 10, 64)
-	if err != nil {
-		c.send("-Error: " + strings.Join(rcmd, " "))
-		return
-	}
-
-	delay := s.delays[rcmd[1]+"-"+rcmd[2]]
-	if delay != nil {
-		if t == -1 {
-			delay.timer.Stop()
-			delete(s.delays, rcmd[1]+"-"+rcmd[2])
-			return
-		}
-		delay.timer.Reset(time.Duration(t) * time.Millisecond)
-	} else {
-		delay := &ZDelay{
-			topic:    rcmd[1],
-			value:    rcmd[2],
-			exectime: time.Now().Add(time.Duration(t) * time.Millisecond),
-			timer:    time.NewTimer(time.Duration(t) * time.Millisecond),
-		}
-		s.delays[rcmd[1]+"-"+rcmd[2]] = delay
-		go func() {
-			select {
-			case <-delay.timer.C:
-				zsub.publish(rcmd[1], rcmd[2])
-				delete(s.delays, rcmd[1]+"-"+rcmd[2])
-			}
-		}()
-	}
-}
-
-// send message
-func (c *ZConn) send(vs ...string) error {
-	c.Lock()
-	defer c.Unlock()
-
-	var bytes []byte
-
-	if len(vs) == 1 {
-		bytes = []byte(vs[0] + "\r\n")
-	} else if len(vs) > 1 {
-		data := "*" + strconv.Itoa(len(vs)) + "\r\n"
-		for _, v := range vs {
-			data += "$" + strconv.Itoa(len(v)) + "\r\n"
-			data += v + "\r\n"
-		}
-		bytes = []byte(data)
-	}
-	_, err := (*c.conn).Write(bytes)
-	return err
 }

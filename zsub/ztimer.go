@@ -165,7 +165,7 @@ func executeShell(command string) (string, error, string) {
 	return stdout.String(), err, stderr.String()
 }
 
-func (s *ZSub) reloadTimerConfig() {
+func (s *ZSub) reloadTimer() {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
 		conf.GetStr("ztimer.db.user", "root"),
 		conf.GetStr("ztimer.db.pwd", "123456"),
@@ -190,5 +190,58 @@ func (s *ZSub) reloadTimerConfig() {
 		var single string
 		rows.Scan(&name, &expr, &single)
 		s.timer([]string{"timer", name, expr, single}, nil) //["timer", topic, expr, a|x]
+	}
+}
+
+// ==================  delay =====================================
+
+type ZDelay struct {
+	topic    string
+	value    string
+	exectime time.Time
+	timer    *time.Timer
+}
+
+// delay topic value 100 -> publish topic value
+func (s *ZSub) delay(rcmd []string, c *ZConn) {
+	s.Lock()
+	defer func() {
+		s.Unlock()
+		s.saveDelay()
+	}()
+	if len(rcmd) != 4 {
+		c.send("-Error: subscribe para number!")
+		return
+	}
+
+	t, err := strconv.ParseInt(rcmd[3], 10, 64)
+	if err != nil {
+		c.send("-Error: " + strings.Join(rcmd, " "))
+		return
+	}
+
+	delay := s.delays[rcmd[1]+"-"+rcmd[2]]
+	if delay != nil {
+		if t == -1 {
+			delay.timer.Stop()
+			delete(s.delays, rcmd[1]+"-"+rcmd[2])
+			return
+		}
+		delay.timer.Reset(time.Duration(t) * time.Millisecond)
+	} else {
+		delay := &ZDelay{
+			topic:    rcmd[1],
+			value:    rcmd[2],
+			exectime: time.Now().Add(time.Duration(t) * time.Millisecond),
+			timer:    time.NewTimer(time.Duration(t) * time.Millisecond),
+		}
+		s.delays[rcmd[1]+"-"+rcmd[2]] = delay
+		go func() {
+			select {
+			case <-delay.timer.C:
+				zsub.publish(rcmd[1], rcmd[2])
+				delete(s.delays, rcmd[1]+"-"+rcmd[2])
+			}
+		}()
 	}
 }

@@ -113,7 +113,7 @@ func TestSendCmd(t *testing.T) {
 		log.Println(err)
 	}
 
-	client.Cmd("reload-timer-config")
+	client.Cmd("reload-timer")
 }
 
 func TestPublish(t *testing.T) {
