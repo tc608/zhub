@@ -65,6 +65,11 @@ func msgAccept(v Message) {
 
 	// 内部执行指令 加入执行队列
 	funChan <- func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("funChan Recovered:", r)
+			}
+		}()
 		switch cmd {
 		case "subscribe":
 			// subscribe x y z
