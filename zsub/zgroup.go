@@ -26,7 +26,7 @@ func (g *ZGroup) appendTo(c *ZConn) {
 	// create new goroutine consumer message
 	unsubChan := make(chan int, 0)
 	c.substoped[topic] = unsubChan
-	c.appendTo(g.conns)
+	g.conns = c.appendTo(g.conns)
 	go func() {
 		for {
 			select {
