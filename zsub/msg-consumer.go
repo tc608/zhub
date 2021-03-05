@@ -38,7 +38,7 @@ func msgAccept(v Message) {
 				return false
 			}
 
-			arr := []string{"subscribe", "unsubscribe", "delay", "groupid"}
+			arr := []string{"subscribe", "timer", "unsubscribe", "delay", "groupid"}
 			if startWithAny(rcmd[0], arr...) {
 				rcmd = strings.Split(rcmd[0], " ")
 			} else {
@@ -85,7 +85,9 @@ func msgAccept(v Message) {
 		case "delay":
 			zsub.delay(rcmd, c)
 		case "timer":
-			zsub.timer(rcmd, c)
+			for _, name := range rcmd[1:] {
+				zsub.timer([]string{"timer", name}, c)
+			}
 		case "cmd":
 			if len(rcmd) == 1 {
 				return
