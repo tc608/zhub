@@ -55,7 +55,7 @@ func msgAccept(v Message) {
 		return
 	case "publish":
 		if len(rcmd) != 3 {
-			c.send("-Error: publish para number!")
+			c.send("-Error: publish para number![" + strings.Join(rcmd, " ") + "]")
 		} else {
 			zsub.publish(rcmd[1], rcmd[2])
 		}

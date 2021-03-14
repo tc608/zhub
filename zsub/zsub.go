@@ -168,7 +168,7 @@ func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
 	return append(arr, c)
 }
 
-// ==================  ZHub server =====================================
+// ServerStart ==================  ZHub server =====================================
 /*
 1、初始化服务
 2、启动服务监听
