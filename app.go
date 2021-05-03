@@ -7,6 +7,7 @@ import (
 	"time"
 	"zhub/cli"
 	"zhub/conf"
+	"zhub/monitor"
 	"zhub/zsub"
 )
 
@@ -46,6 +47,7 @@ func main() {
 	}
 
 	if server {
+		go monitor.StartHttp()
 		zsub.ServerStart(addr) // 服务进程启动
 	} else {
 		cli.ClientRun(addr)

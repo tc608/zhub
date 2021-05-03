@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"github.com/go-basic/uuid"
 	"log"
 	"net"
 	"os"
@@ -24,9 +25,18 @@ type Client struct {
 	subFun   map[string]func(v string) // subscribe topic and callback function
 	timerFun map[string]func()         // subscribe timer amd callback function
 
-	chSend       chan []string // chan of send message
-	chReceive    chan []string // chan of receive message
-	timerReceive chan []string // chan of timer
+	chSend       chan []string    // chan of send message
+	chReceive    chan []string    // chan of receive message
+	timerReceive chan []string    // chan of timer
+	lockFlag     map[string]*Lock // chan of lock
+}
+
+type Lock struct {
+	Key      string   // lock Key
+	Uuid     string   // lock Uuid
+	flagChan chan int //
+	// starttime uint32 // lock start time
+	// duration  int    // lock duration
 }
 
 func Create(addr string, groupid string) (*Client, error) {
@@ -48,6 +58,7 @@ func Create(addr string, groupid string) (*Client, error) {
 		chSend:       make(chan []string, 100),
 		chReceive:    make(chan []string, 100),
 		timerReceive: make(chan []string, 100),
+		lockFlag:     make(map[string]*Lock),
 	}
 
 	client.send("groupid " + groupid)
@@ -115,6 +126,8 @@ subscribe x y z
 func (c *Client) Subscribe(topic string, fun func(v string)) {
 	c.send("subscribe " + topic)
 	if fun != nil {
+		c.wlock.Lock()
+		defer c.wlock.Unlock()
 		c.subFun[topic] = fun
 	}
 }
@@ -133,7 +146,7 @@ func (c *Client) ping() {
 	c.send("ping")
 }
 
-// -------------------------------------- pub-sub --------------------------------------
+//Publish -------------------------------------- pub-sub --------------------------------------
 /*
 send topic message :
 ---
@@ -158,7 +171,9 @@ func (c *Client) Delay(topic string, message string, delay int) error {
 	return c.send("delay", topic, message, strconv.Itoa(delay))
 }
 
-/*func (c *Client) Timer(topic string, expr string, fun func()) {
+/*
+Timer
+func (c *Client) Timer(topic string, expr string, fun func()) {
 	c.timerFun[topic] = fun
 	c.send("timer", topic, expr, "x")
 }*/
@@ -183,6 +198,35 @@ func (c *Client) Cmd(cmd ...string) {
 
 func (c *Client) Close() {
 	c.conn.Close()
+}
+
+// Lock Key
+func (c *Client) Lock(key string, duration int) Lock {
+	uuid := uuid.New()
+	c.send("lock", key, uuid, strconv.Itoa(duration))
+
+	lockChan := make(chan int, 2)
+	go func() {
+		c.wlock.Lock()
+		defer c.wlock.Unlock()
+		c.lockFlag[uuid] = &Lock{
+			Key:      key,
+			Uuid:     uuid,
+			flagChan: lockChan,
+		}
+	}()
+
+	select {
+	case <-lockChan:
+		log.Println("lock-ok", time.Now().UnixNano()/1e6, uuid)
+	}
+
+	return Lock{Key: key, Uuid: uuid}
+}
+
+func (c *Client) Unlock(l Lock) {
+	c.send("unlock", l.Key, l.Uuid)
+	delete(c.lockFlag, l.Uuid)
 }
 
 /*func (c *Client) subscribes(topics ...string) error {
@@ -269,6 +313,19 @@ func (c *Client) receive() {
 			}
 
 			if len(vs) == 3 && strings.EqualFold(vs[0], "message") {
+				if strings.EqualFold(vs[1], "lock") { // message lock Uuid
+					go func() {
+						log.Println("lock:" + vs[2])
+						c.wlock.Lock()
+						defer c.wlock.Unlock()
+
+						if c.lockFlag[vs[2]] == nil {
+							return
+						}
+						c.lockFlag[vs[2]].flagChan <- 0
+					}()
+					continue
+				}
 				c.chReceive <- vs
 				continue
 			}

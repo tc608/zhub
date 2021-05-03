@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"zhub/conf"
 )
 
@@ -16,6 +17,7 @@ var (
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
 		delays: make(map[string]*ZDelay),
+		locks:  make(map[string][]*Lock),
 	}
 )
 
@@ -24,6 +26,7 @@ type ZSub struct {
 	topics map[string]*ZTopic
 	timers map[string]*ZTimer
 	delays map[string]*ZDelay
+	locks  map[string][]*Lock
 }
 
 type ZConn struct { //ZConn
@@ -34,6 +37,15 @@ type ZConn struct { //ZConn
 	timers    []string            // 订阅、定时调度分别创建各自连接
 	stoped    chan int            // 关闭信号量
 	substoped map[string]chan int // 关闭信号量
+}
+
+type Lock struct {
+	key      string
+	uuid     string
+	duration int
+	timer    *time.Timer
+	start    int64
+	//stop     time.Time
 }
 
 func NewZConn(conn *net.Conn) *ZConn {
@@ -60,7 +72,7 @@ func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
 		ztopic = &ZTopic{
 			groups: map[string]*ZGroup{},
 			topic:  topic,
-			chMsg:  make(chan string, 10000),
+			chMsg:  make(chan string, 500),
 		}
 		ztopic.init()
 		zsub.topics[topic] = ztopic
@@ -71,7 +83,7 @@ func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
 		zgroup = &ZGroup{
 			//conns:  []*ZConn{},
 			ztopic: ztopic,
-			chMsg:  make(chan string, 1000),
+			chMsg:  make(chan string, 500),
 		}
 		ztopic.groups[c.groupid] = zgroup
 	}
@@ -187,8 +199,9 @@ func ServerStart(addr string) {
 	}()
 
 	// 重新加载[定时、延时]
-	go zsub.reloadTimer()
-	go zsub.reloadDelay()
+	go zsub.ReloadTimer()
+	go zsub.loadDelay()
+	//go zsub.loadLock()
 
 	// 启动服务监听
 	listen, err := net.Listen("tcp", addr)
@@ -237,8 +250,15 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 			n, _ := strconv.Atoi(string(line[1:]))
 			for i := 0; i < n; i++ {
 				reader.ReadLine()
-				v, _, _ := reader.ReadLine()
-				rcmd = append(rcmd, string(v))
+				var vx = ""
+			a:
+				if v, prefix, _ := reader.ReadLine(); prefix {
+					vx += string(v)
+					goto a
+				} else {
+					vx += string(v)
+				}
+				rcmd = append(rcmd, vx)
 			}
 		default:
 			rcmd = append(rcmd, string(line))
@@ -253,9 +273,9 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 }
 
 /*
-accept topic message
-1、send message to topic's chan
-2、feedback send success to sender, and sending message to topic's subscripts
+accept stop message
+1、send message to stop's chan
+2、feedback send success to sender, and sending message to stop's subscripts
 */
 func (s *ZSub) publish(topic, msg string) {
 	s.RLock()
@@ -274,6 +294,9 @@ send broadcast message
 func (s *ZSub) broadcast(topic, msg string) {
 	s.RLock()
 	defer s.RUnlock()
+	if strings.EqualFold(topic, "lock") {
+		log.Println("lock", msg)
+	}
 
 	ztopic := s.topics[topic] //ZTopic
 	if ztopic == nil {
@@ -287,8 +310,95 @@ func (s *ZSub) broadcast(topic, msg string) {
 	}
 }
 
+/*
+lock: 	lock   key uuid t
+unlock: unlock key uuid
+*/
+func (s *ZSub) _lock(lock *Lock) {
+	locks := s.locks[lock.key]
+	if locks == nil {
+		locks = make([]*Lock, 0)
+	}
+	if len(locks) == 0 { // lock success
+		lock.start = time.Now().Unix()
+		locks = append(locks, lock)
+		s.locks[lock.key] = locks
+		s.broadcast("lock", lock.uuid)
+
+		// 设置时间到解锁
+		locks[0].timer = time.NewTimer(time.Duration(locks[0].duration) * time.Second)
+		go func() {
+			select {
+			case <-locks[0].timer.C:
+				s._unlock(*locks[0])
+			}
+		}()
+	} else {
+		s.locks[lock.key] = append(locks, lock)
+	}
+}
+func (s *ZSub) _unlock(l Lock) {
+	locks := s.locks[l.key]
+	if locks == nil || len(locks) == 0 {
+		return
+	}
+	if strings.EqualFold(locks[0].uuid, l.uuid) {
+		locks[0].timer.Stop()
+		locks = locks[1:]
+		s.locks[l.key] = locks
+	}
+	if len(s.locks[l.key]) > 0 { // next lock
+		s.broadcast("lock", s.locks[l.key][0].uuid)
+		s.locks[l.key][0].start = time.Now().Unix()
+		s.locks[l.key][0].timer = time.NewTimer(time.Duration(s.locks[l.key][0].duration) * time.Second)
+		go func() {
+			select {
+			case <-s.locks[l.key][0].timer.C:
+				s._unlock(*s.locks[l.key][0])
+			}
+		}()
+	}
+}
+
 func (s *ZSub) shutdown() {
-	s.saveDelay()
-	s.Lock()
+	s.dataStorage()
 	os.Exit(0)
+}
+
+func Info() map[string]interface{} {
+	m := map[string]interface{}{}
+
+	for s, topic := range zsub.topics {
+		// {groups:[{name:xxx,size:xx}]}
+		arr := make([]map[string]interface{}, 0)
+
+		for groupname, group := range topic.groups {
+			arr = append(arr, map[string]interface{}{
+				"name":    groupname,
+				"subsize": len(group.conns),
+				"offset":  group.offset,
+				"mcount":  topic.mcount,
+			})
+		}
+		m[s] = arr
+	}
+
+	return m
+}
+
+func (s *ZSub) Clearup() {
+	for tn, topic := range s.topics {
+		for _, group := range topic.groups {
+			if len(group.conns) > 0 || topic.mcount > group.offset {
+				goto a
+			}
+		}
+		close(topic.chMsg)
+		delete(s.topics, tn)
+	a:
+	}
+}
+
+func ZSubx() *ZSub {
+	return zsub
 }

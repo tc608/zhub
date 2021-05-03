@@ -165,7 +165,7 @@ func executeShell(command string) (string, error, string) {
 	return stdout.String(), err, stderr.String()
 }
 
-func (s *ZSub) reloadTimer() {
+func (s *ZSub) ReloadTimer() {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
 		conf.GetStr("ztimer.db.user", "root"),
 		conf.GetStr("ztimer.db.pwd", "123456"),
@@ -207,7 +207,7 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 	s.Lock()
 	defer func() {
 		s.Unlock()
-		s.saveDelay()
+		s.dataStorage()
 	}()
 	if len(rcmd) != 4 {
 		c.send("-Error: subscribe para number!")
@@ -222,7 +222,7 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 
 	delay := s.delays[rcmd[1]+"-"+rcmd[2]]
 	if delay != nil {
-		if t == -1 {
+		if t < 0 {
 			delay.timer.Stop()
 			delete(s.delays, rcmd[1]+"-"+rcmd[2])
 			return

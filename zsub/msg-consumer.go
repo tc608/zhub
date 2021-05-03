@@ -2,6 +2,7 @@ package zsub
 
 import (
 	"log"
+	"strconv"
 	"strings"
 	"zhub/conf"
 )
@@ -94,13 +95,28 @@ func msgAccept(v Message) {
 			}
 			switch rcmd[1] {
 			case "reload-timer":
-				zsub.reloadTimer()
+				zsub.ReloadTimer()
 			case "shutdown":
 				if !strings.EqualFold(c.groupid, "group-admin") {
 					return
 				}
 				zsub.shutdown()
 			}
+		case "lock":
+			// lock key uuid 5
+			if len(rcmd) != 4 {
+				c.send("-Error: lock para number![" + strings.Join(rcmd, " ") + "]")
+				return
+			}
+			d, _ := strconv.Atoi(rcmd[3])
+			zsub._lock(&Lock{key: rcmd[1], uuid: rcmd[2], duration: d})
+		case "unlock":
+			// unlock key uuid
+			if len(rcmd) != 3 {
+				c.send("-Error: unlock para number![" + strings.Join(rcmd, " ") + "]")
+				return
+			}
+			zsub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
 		default:
 			c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 			return

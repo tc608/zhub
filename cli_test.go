@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"testing"
@@ -108,12 +109,13 @@ func TestTimer(t *testing.T) {
 }
 
 func TestSendCmd(t *testing.T) {
-	client, err := cli.Create(addr, "")
+	client, err := cli.Create(addr, "group-admin")
 	if err != nil {
 		log.Println(err)
 	}
 
-	client.Cmd("reload-timer")
+	//client.Cmd("reload-timer")
+	client.Cmd("shutdown")
 }
 
 func TestPublish(t *testing.T) {
@@ -126,4 +128,30 @@ func TestPublish(t *testing.T) {
 	}
 
 	time.Sleep(time.Second)
+}
+
+func TestLock(t *testing.T) {
+	client, _ := cli.Create(addr, "xx")
+
+	client.Subscribe("lock", func(v string) {
+
+	})
+
+	var fun = func(x string) {
+		log.Println("lock", time.Now().UnixNano()/1e6)
+		lock := client.Lock("a", 30)
+		defer client.Unlock(lock)
+		//client.Lock("a", 5)
+
+		for i := 0; i < 5; i++ {
+			time.Sleep(time.Second * 1)
+			fmt.Println(x + ":" + strconv.Itoa(i+1))
+		}
+	}
+
+	go fun("x")
+	go fun("y")
+	go fun("z")
+
+	time.Sleep(time.Second * 30 * 10)
 }

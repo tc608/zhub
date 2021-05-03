@@ -5,7 +5,7 @@ import "sync"
 type ZTopic struct { //ZTopic
 	sync.Mutex
 	groups map[string]*ZGroup
-	mcount int
+	mcount int32
 	topic  string      // 主题名称
 	chMsg  chan string // 主题消息投递
 }
