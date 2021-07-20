@@ -229,6 +229,9 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 		}
 		delay.timer.Reset(time.Duration(t) * time.Millisecond)
 	} else {
+		if t < 0 {
+			return
+		}
 		delay := &ZDelay{
 			topic:    rcmd[1],
 			value:    rcmd[2],
