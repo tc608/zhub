@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/go-basic/uuid"
+	"unicode/utf8"
+
+	//"github.com/go-basic/uuid"
 	"log"
 	"net"
 	"os"
@@ -257,7 +260,7 @@ a:
 	} else if len(vs) > 1 {
 		data := "*" + strconv.Itoa(len(vs)) + "\r\n"
 		for _, v := range vs {
-			data += "$" + strconv.Itoa(len(v)) + "\r\n"
+			data += "$" + strconv.Itoa(utf8.RuneCountInString(v)) + "\r\n"
 			data += v + "\r\n"
 		}
 		_, err = c.conn.Write([]byte(data))
@@ -341,6 +344,9 @@ func (c *Client) receive() {
 
 			continue
 		case "+": // +pong, +xxx
+			if strings.EqualFold("+ping", string(v)) {
+				// c.send("+pong")
+			}
 		case "-":
 			fmt.Println("error:", string(v))
 		case ":":

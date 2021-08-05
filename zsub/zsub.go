@@ -19,8 +19,48 @@ var (
 		timers: make(map[string]*ZTimer),
 		delays: make(map[string]*ZDelay),
 		locks:  make(map[string][]*Lock),
+		conns:  make([]*ZConn, 0),
 	}
 )
+
+func init() {
+	// conn health check: T=10s, close>29s
+	go func() {
+		ticker := time.NewTicker(time.Second * 10)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			funChan <- func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Println("conn health check Recovered:", r)
+					}
+				}()
+				conns := make([]*ZConn, 0) // 需要关闭的连接
+				for _, c := range zsub.conns {
+					if c.ping > 0 && c.ping-c.pong > 19 {
+						conns = c.appendTo(conns)
+						continue
+					}
+
+					c.ping = time.Now().Unix()
+					if c.pong == 0 {
+						c.pong = c.ping
+					}
+
+					c.send("+ping")
+				}
+
+				// close
+				for _, c := range conns {
+					log.Println("========================================= conn ping close:", (*c.conn).RemoteAddr(), "[", c.groupid, "] =========================================")
+					c.close()
+				}
+
+			}
+		}
+	}()
+}
 
 type ZSub struct {
 	sync.RWMutex
@@ -28,6 +68,7 @@ type ZSub struct {
 	timers map[string]*ZTimer
 	delays map[string]*ZDelay
 	locks  map[string][]*Lock
+	conns  []*ZConn
 }
 
 type ZConn struct { //ZConn
@@ -38,6 +79,8 @@ type ZConn struct { //ZConn
 	timers    []string            // 订阅、定时调度分别创建各自连接
 	stoped    chan int            // 关闭信号量
 	substoped map[string]chan int // 关闭信号量
+	ping      int64               // 最后心跳时间
+	pong      int64               // 最后心跳回复时间
 }
 
 type Lock struct {
@@ -181,6 +224,18 @@ func (c *ZConn) appendTo(arr []*ZConn) []*ZConn {
 	return append(arr, c)
 }
 
+func (c *ZConn) removeTo(arr []*ZConn) []*ZConn {
+	if arr == nil {
+		arr = make([]*ZConn, 0)
+	}
+	for i, item := range arr {
+		if item == c {
+			arr = append(arr[:i], arr[i+1:]...)
+		}
+	}
+	return arr
+}
+
 // ServerStart ==================  ZHub server =====================================
 /*
 1、初始化服务
@@ -232,8 +287,19 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 		}
 	}()
 	defer func() {
-		c.close() // close ZConn
+		// conn remove to conns
+		funChan <- func() {
+			zsub.conns = c.removeTo(zsub.conns)
+		}
+
+		// close ZConn
+		c.close()
 	}()
+
+	// conn add to conns
+	funChan <- func() {
+		zsub.conns = c.appendTo(zsub.conns)
+	}
 
 	reader := bufio.NewReader(*c.conn)
 	for {

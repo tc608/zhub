@@ -4,6 +4,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 	"zhub/conf"
 )
 
@@ -19,6 +20,12 @@ func msgAccept(v Message) {
 	rcmd := v.Rcmd
 
 	if len(rcmd) == 0 {
+		return
+	}
+
+	// ping reply
+	if strings.EqualFold("+pong", v.Rcmd[0]) {
+		v.Conn.pong = time.Now().Unix()
 		return
 	}
 
