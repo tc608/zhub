@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 	"zhub/conf"
@@ -21,6 +22,7 @@ var (
 		locks:  make(map[string][]*Lock),
 		conns:  make([]*ZConn, 0),
 	}
+	SN int32 = 1000
 )
 
 func init() {
@@ -73,6 +75,7 @@ type ZSub struct {
 
 type ZConn struct { //ZConn
 	sync.Mutex
+	sn        int32 // 连接编号
 	conn      *net.Conn
 	groupid   string
 	topics    []string
@@ -94,6 +97,7 @@ type Lock struct {
 
 func NewZConn(conn *net.Conn) *ZConn {
 	return &ZConn{
+		sn:        atomic.AddInt32(&SN, 1), // 连接编号
 		conn:      conn,
 		topics:    []string{},
 		timers:    []string{},
@@ -272,9 +276,9 @@ func ServerStart(addr string) {
 			log.Println(err)
 			continue
 		}
-		log.Println("conn start: ", conn.RemoteAddr())
-
 		zConn := NewZConn(&conn)
+
+		log.Println("conn start:", conn.RemoteAddr(), "[", zConn.sn, "]")
 		go zsub.acceptHandler(zConn)
 	}
 }
@@ -285,6 +289,7 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 		if r := recover(); r != nil {
 			log.Println("acceptHandler Recovered:", r)
 		}
+		log.Println("conn closed:", (*c.conn).RemoteAddr(), "[", c.sn, "]")
 	}()
 	defer func() {
 		// conn remove to conns
@@ -442,8 +447,8 @@ func (s *ZSub) shutdown() {
 }
 
 func Info() map[string]interface{} {
-	m := map[string]interface{}{}
-
+	// topics
+	topics := map[string]interface{}{}
 	for s, topic := range zsub.topics {
 		// {groups:[{name:xxx,size:xx}]}
 		arr := make([]map[string]interface{}, 0)
@@ -456,10 +461,28 @@ func Info() map[string]interface{} {
 				"mcount":  topic.mcount,
 			})
 		}
-		m[s] = arr
+		topics[s] = arr
 	}
 
-	return m
+	// conns
+	conns := make([]interface{}, 0)
+	for _, c := range zsub.conns {
+		m := make(map[string]interface{}, 0)
+		m["remoteaddr"] = (*c.conn).RemoteAddr()
+		m["groupid"] = c.groupid
+		m["topics"] = c.topics
+		m["timers"] = c.timers
+		conns = append(conns, m)
+	}
+
+	info := map[string]interface{}{
+		"topics":    topics,
+		"topicsize": len(topics),
+		"timersize": len(zsub.timers),
+		"conns":     conns,
+		"connsize":  len(zsub.conns),
+	}
+	return info
 }
 
 func (s *ZSub) Clearup() {

@@ -31,8 +31,8 @@ func cleanup(w http.ResponseWriter, r *http.Request) {
 }
 
 func info(w http.ResponseWriter, r *http.Request) {
-	topics := zsub.Info()
-	renderJson(w, topics)
+	info := zsub.Info()
+	renderJson(w, info)
 }
 
 func renderJson(w http.ResponseWriter, d interface{}) {

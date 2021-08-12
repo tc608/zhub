@@ -30,7 +30,7 @@ func msgAccept(v Message) {
 	}
 
 	if conf.LogDebug {
-		log.Println("rcmd: " + strings.Join(rcmd, " "))
+		log.Println("[", v.Conn.sn, "] rcmd: "+strings.Join(rcmd, " "))
 	}
 
 	if len(rcmd) == 1 {

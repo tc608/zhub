@@ -345,7 +345,7 @@ func (c *Client) receive() {
 			continue
 		case "+": // +pong, +xxx
 			if strings.EqualFold("+ping", string(v)) {
-				// c.send("+pong")
+				c.send("+pong")
 			}
 		case "-":
 			fmt.Println("error:", string(v))
