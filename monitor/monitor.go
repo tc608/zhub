@@ -16,8 +16,16 @@ func StartHttp() {
 	http.HandleFunc("/info", info)
 	http.HandleFunc("/cleanup", cleanup)
 	http.HandleFunc("/retimer", retimer)
+	http.HandleFunc("/topic/publish", publish)
 
 	http.ListenAndServe(":1217", nil)
+}
+
+func publish(w http.ResponseWriter, r *http.Request) {
+	topic := r.FormValue("topic")
+	value := r.FormValue("value")
+	zsub.ZSubx().Publish(topic, value)
+	renderJson(w, "+ok")
 }
 
 func retimer(w http.ResponseWriter, r *http.Request) {

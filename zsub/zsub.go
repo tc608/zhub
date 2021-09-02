@@ -28,7 +28,7 @@ var (
 func init() {
 	// conn health check: T=10s, close>29s
 	go func() {
-		ticker := time.NewTicker(time.Second * 10)
+		ticker := time.NewTicker(time.Second * 20)
 		defer ticker.Stop()
 
 		for range ticker.C {
@@ -60,17 +60,20 @@ func init() {
 				}
 
 			}
+
+			zsub.dataStorage()
 		}
 	}()
 }
 
 type ZSub struct {
 	sync.RWMutex
-	topics map[string]*ZTopic
-	timers map[string]*ZTimer
-	delays map[string]*ZDelay
-	locks  map[string][]*Lock
-	conns  []*ZConn
+	topics  map[string]*ZTopic
+	timers  map[string]*ZTimer
+	delays  map[string]*ZDelay
+	locks   map[string][]*Lock
+	conns   []*ZConn
+	delayup bool
 }
 
 type ZConn struct { //ZConn
@@ -242,8 +245,9 @@ func (c *ZConn) removeTo(arr []*ZConn) []*ZConn {
 
 // ServerStart ==================  ZHub server =====================================
 /*
-1、初始化服务
-2、启动服务监听
+ServerStart
+1、load history data
+2、init server
 */
 func ServerStart(addr string) {
 	conf.GetStr("data.dir", "data")
@@ -354,11 +358,11 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 }
 
 /*
-accept stop message
-1、send message to stop's chan
-2、feedback send success to sender, and sending message to stop's subscripts
+Publish topic message
+1、send message to topic's chan
+2、feedback send success to sender, and sending message to topic's subscripts
 */
-func (s *ZSub) publish(topic, msg string) {
+func (s *ZSub) Publish(topic, msg string) {
 	s.RLock()
 	defer s.RUnlock()
 	ztopic := s.topics[topic] //ZTopic

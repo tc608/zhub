@@ -207,7 +207,8 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 	s.Lock()
 	defer func() {
 		s.Unlock()
-		s.dataStorage()
+		// s.dataStorage()
+		s.delayup = true
 	}()
 	if len(rcmd) != 4 {
 		c.send("-Error: subscribe para number!")
@@ -242,8 +243,10 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 		go func() {
 			select {
 			case <-delay.timer.C:
-				zsub.publish(rcmd[1], rcmd[2])
-				delete(s.delays, rcmd[1]+"-"+rcmd[2])
+				zsub.Publish(rcmd[1], rcmd[2])
+				funChan <- func() {
+					delete(s.delays, rcmd[1]+"-"+rcmd[2])
+				}
 			}
 		}()
 	}

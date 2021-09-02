@@ -2,26 +2,28 @@ package zsub
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"zhub/conf"
 )
 
 var (
-// hubChan = make(chan Message, 1000) //接收到的 所有消息数据
+	topicChan = make(chan []string, 1000) //接收到的 所有消息数据
 )
 
-// 数据封装
+// Message 数据封装
 type Message struct {
 	Conn *ZConn
 	Rcmd []string
 }
 
-// 文件追加内容
+// Append file append
 func Append(str string, fileName string) {
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
@@ -39,31 +41,53 @@ func Append(str string, fileName string) {
 func (s *ZSub) dataStorage() {
 	s.Lock()
 	defer s.Unlock()
-	// delay save
-	err := os.Remove(conf.DataDir + "/delay.z")
-	if err != nil {
-		log.Println(err)
-	}
-
-	var str string
-	for _, delay := range s.delays {
-		str += fmt.Sprintf("%s %s %s\n", delay.topic, delay.value, strconv.FormatInt(delay.exectime.Unix(), 10))
-	}
-	Append(str, conf.DataDir+"/delay.z")
-
-	// lock save
-	err = os.Remove(conf.DataDir + "/lock.z")
-	if err != nil {
-		log.Println(err)
-	}
-	str = ""
-	for _, locks := range s.locks {
-		for _, lock := range locks {
-			str += fmt.Sprintf("%s %s %d %d\n", lock.key, lock.uuid, lock.duration, lock.start)
-			break // 只记录获得锁的记录
+	// ========================== delay save ===========================
+	func() {
+		if !s.delayup {
+			return
 		}
-	}
-	Append(str, conf.DataDir+"/lock.z")
+		defer func() {
+			s.delayup = false
+		}()
+
+		err := os.Remove(conf.DataDir + "/delay.z")
+		if err != nil {
+			log.Println(err)
+		}
+		file, err := os.OpenFile(conf.DataDir+"/delay.z", os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer file.Close()
+		writer := bufio.NewWriter(file)
+		delays2 := s.delays
+
+		for _, delay := range delays2 {
+			writer.WriteString(delay.topic)
+			writer.WriteString(" ")
+			writer.WriteString(delay.value)
+			writer.WriteString(" ")
+			writer.WriteString(strconv.FormatInt(delay.exectime.Unix(), 10))
+			writer.WriteString("\n")
+		}
+		writer.Flush()
+	}()
+
+	// ========================== lock save ===========================
+	func() {
+		err := os.Remove(conf.DataDir + "/lock.z")
+		if err != nil {
+			log.Println(err)
+		}
+		str := ""
+		for _, locks := range s.locks {
+			for _, lock := range locks {
+				str += fmt.Sprintf("%s %s %d %d\n", lock.key, lock.uuid, lock.duration, lock.start)
+				break // 只记录获得锁的记录
+			}
+		}
+		Append(str, conf.DataDir+"/lock.z")
+	}()
 }
 
 func (s *ZSub) loadDelay() {
@@ -139,4 +163,67 @@ func (s *ZSub) loadLock() {
 			// start:    start,
 		})
 	}
+}
+
+// --------------------------------------
+var (
+	db  *sql.DB
+	seq int64 = 50000
+)
+
+func init() {
+	conf.Load("app.conf")
+	_db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
+		conf.GetStr("ztimer.db.user", "root"),
+		conf.GetStr("ztimer.db.pwd", "123456"),
+		conf.GetStr("ztimer.db.addr", "127.0.0.1:3306"),
+		conf.GetStr("ztimer.db.database", "zhub"),
+	))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	db = _db
+
+	// 批量写入数据库，等待超时5秒，如有数据写入数据
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("MsgToDb Recovered:", r)
+			}
+		}()
+
+		var flagcount = 0
+		var _sql = "INSERT INTO zhub.topicmessage (`msgid`,`topic`,`value`,`createtime`) VALUES \n"
+		for {
+			select {
+			case msg := <-topicChan:
+				var topic, value = msg[1], msg[2]
+				var t = time.Now().UnixNano() / 1e6
+				_sql += fmt.Sprintf("('%s','%s','%s',%d),\n",
+					strconv.FormatInt(t, 36)+"-"+strconv.FormatInt(atomic.AddInt64(&seq, 1), 36), topic, value, t)
+				flagcount++
+			case <-time.After(time.Second * 5): // 等待5秒
+				if flagcount > 0 {
+					flagcount = 100
+				}
+			}
+
+			if flagcount != 100 {
+				continue
+			}
+
+			_sql = _sql[:len(_sql)-2]
+			_sql += ";"
+
+			_, err = db.Exec(_sql)
+			if err != nil {
+				log.Println(err)
+			}
+
+			_sql = "INSERT INTO zhub.topicmessage (`msgid`,`topic`,`value`,`createtime`) VALUES \n"
+			flagcount = 0
+		}
+	}()
 }
