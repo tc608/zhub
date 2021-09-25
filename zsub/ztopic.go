@@ -1,6 +1,10 @@
 package zsub
 
-import "sync"
+import (
+	"fmt"
+	"log"
+	"sync"
+)
 
 type ZTopic struct { //ZTopic
 	sync.Mutex
@@ -19,7 +23,12 @@ func (t *ZTopic) init() {
 				break
 			}
 
-			for _, group := range t.groups {
+			for name, group := range t.groups {
+				// zgroup chan overload check
+				if len(group.chMsg) == cap(group.chMsg) {
+					log.Println(fmt.Sprintf("zgroup no cap: [%s.%s %s]", name, t.topic, msg))
+					continue
+				}
 				group.chMsg <- msg
 			}
 		}

@@ -2,6 +2,7 @@ package zsub
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -369,8 +370,15 @@ func (s *ZSub) Publish(topic, msg string) {
 	if ztopic == nil {
 		return
 	}
-	ztopic.chMsg <- msg
 	ztopic.mcount++
+
+	// topic chan overload check
+	if len(ztopic.chMsg) == cap(ztopic.chMsg) {
+		log.Println(fmt.Sprintf("ztopic no cap: [%s %s]", topic, msg))
+		return
+	}
+
+	ztopic.chMsg <- msg
 }
 
 /*
