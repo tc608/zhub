@@ -1,6 +1,7 @@
 package zsub
 
 import (
+	"encoding/json"
 	"log"
 	"strconv"
 	"strings"
@@ -60,6 +61,27 @@ func msgAccept(v Message) {
 	switch cmd {
 	case "groupid":
 		c.groupid = rcmd[1]
+		return
+	case "rpc":
+		// if rpc and  no sub back error
+		if zsub.noSubscribe(rcmd[1]) {
+			rpcBody := make(map[string]string)
+			json.Unmarshal([]byte(rcmd[2]), &rpcBody)
+			log.Println("rpc no subscribe: ", rcmd[1])
+
+			ruk := rpcBody["ruk"]
+			zsub.Publish(strings.Split(ruk, "::")[0], "{'retcode': 404, 'retinfo': '服务离线！', 'ruk': '"+ruk+"'}")
+			return
+		}
+
+		if len(rcmd) != 3 {
+			c.send("-Error: publish para number![" + strings.Join(rcmd, " ") + "]")
+		} else {
+			if len(topicChan) < cap(topicChan) {
+				topicChan <- rcmd
+			}
+			zsub.Publish(rcmd[1], rcmd[2])
+		}
 		return
 	case "publish":
 		if len(rcmd) != 3 {

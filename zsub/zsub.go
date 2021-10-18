@@ -510,6 +510,20 @@ func (s *ZSub) Clearup() {
 	}
 }
 
+func (s *ZSub) noSubscribe(topic string) bool {
+	zTopic := s.topics[topic]
+	if zTopic == nil || len(zTopic.groups) == 0 {
+		return true
+	}
+
+	for _, g := range zTopic.groups {
+		if len(g.conns) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func ZSubx() *ZSub {
 	return zsub
 }
