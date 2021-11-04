@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
-	"zhub/conf"
 )
 
 var (
@@ -251,7 +250,7 @@ ServerStart
 2、init server
 */
 func ServerStart(addr string) {
-	conf.GetStr("data.dir", "data")
+	GetStr("data.dir", "data")
 
 	go func() {
 		for {
@@ -522,8 +521,4 @@ func (s *ZSub) noSubscribe(topic string) bool {
 		}
 	}
 	return true
-}
-
-func ZSubx() *ZSub {
-	return zsub
 }

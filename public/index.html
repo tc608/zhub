@@ -2,9 +2,120 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>ZHub</title>
+    <link rel="stylesheet" href="http://rep.1216.top/repo/zui-dist/css/zui.css">
+    <link href="http://meta.1216.top/res/css/zui-theme.css" rel="stylesheet">
+    <style type="text/css">
+        body {
+            text-align: center;
+        }
+
+        .panel {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .board {
+            width: 100%;
+        }
+
+        .board-success {
+            background-color: #ddf4df;
+            color: #329d38;
+        }
+
+        .board-danger {
+            background-color: #ffe5e0;
+            color: #e75033;
+        }
+
+        .board-item {
+            width: 50%;
+            float: left;
+        }
+        .center-block {
+            width:100%;
+            height:50px;
+            position:absolute;
+            top:100%;
+            margin-top:-50px;
+        }
+    </style>
 </head>
 <body style="text-align: center;padding: 10px">
-<h2>welcome zhub!</h2>
+<h1 class="">welcome zhub!</h1>
+
+<div class="example">
+    <a class="label">Topic: 698</a>
+    <span class="label label-primary">Timer: 65</span>
+    <span class="label label-success">Conns: 45</span>
+    <span class="label label-info">Lock: 12/1122</span>
+    <span class="label label-warning">Delay: 12/3000</span>
+    <!--<span class="label label-danger">Danger</span>-->
+</div>
+<hr>
+
+<div class="col-md-12">
+
+    <ul class="nav nav-secondary nav-justified">
+        <li class="active"><a data-tab href="#Issues"><b>Issues</b> </a></li>
+        <li><a data-tab href="#Topic"><b>Topic</b></a></li>
+        <li><a data-tab href="#Timer"><b>Timer</b> </a></li>
+        <li><a data-tab href="#Conns"><b>Conns</b> </a></li>
+        <li><a data-tab href="#Lock"><b>Lock</b> </a></li>
+        <li><a data-tab href="#Delay"><b>Delay</b> </a></li>
+        <li><a data-tab href="#Releases"><b>Releases</b> </a></li>
+        <li><a data-tab href="#Releases"><b>Q&A</b> </a></li>
+        <li><a data-tab href="#Releases"><b>Docs</b> </a></li>
+    </ul>
+    <div class="tab-content pull-left">
+        <div class="tab-pane active" id="Issues">
+            Issues
+        </div>
+        <div class="tab-pane" id="Topic">
+            Topic
+        </div>
+        <div class="tab-pane" id="Timer">
+            Timer
+        </div>
+        <div class="tab-pane" id="Conns">
+            Conns
+        </div>
+        <div class="tab-pane" id="Lock">
+            Lock
+        </div>
+        <div class="tab-pane" id="Delay">
+            Delay
+        </div>
+        <div class="tab-pane" id="Releases">
+            Releases
+        </div>
+    </div>
+    <br>
+
+
+    <br>
+</div>
+
+<H6 class="center-block">
+
+    <div>
+        <a href="#" title="ZHub">ZHub</a>
+        <br>
+        <a href="index.html" title="开发者工具">Dev-Kit</a> |
+        <a href="https://gitee.com/tc608/JKit" target="_blank" title="Excel处理">JKit</a> |
+        <a href="http://meta.1216.top" target="_blank" title="元数据引擎">Meta-Kit</a> |
+        <a href="https://gitee.com/tc608/redtimer" target="_blank" title="徒手编写，精简时间调度">Red-timer</a> |
+        <a href="https://www.1216.top" target="_blank" title="redkale 实现论坛博客系统">Redbbs</a> |
+        <a href="https://gitee.com/tc608/jfly" target="_blank" title="jfinal 实现论坛博客系统">JFly</a>
+    </div>
+    <br>
+    © TCCN <span href="">京ICP备16065761号</span>
+    <br>
+    <br>
+</H6>
+
+<script src="http://meta.1216.top/res/zui/lib/jquery/jquery.js" defer></script>
+<script src="http://meta.1216.top/res/zui/js/zui.js" defer></script>
 </body>
 </html>

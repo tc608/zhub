@@ -13,7 +13,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"zhub/conf"
 )
 
 type ZTimer struct {
@@ -167,10 +166,10 @@ func executeShell(command string) (string, error, string) {
 
 func (s *ZSub) ReloadTimer() {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
-		conf.GetStr("ztimer.db.user", "root"),
-		conf.GetStr("ztimer.db.pwd", "123456"),
-		conf.GetStr("ztimer.db.addr", "127.0.0.1:3306"),
-		conf.GetStr("ztimer.db.database", "zhub"),
+		GetStr("ztimer.db.user", "root"),
+		GetStr("ztimer.db.pwd", "123456"),
+		GetStr("ztimer.db.addr", "127.0.0.1:3306"),
+		GetStr("ztimer.db.database", "zhub"),
 	))
 
 	if err != nil {

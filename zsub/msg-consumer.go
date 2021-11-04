@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"zhub/conf"
 )
 
 var funChan = make(chan func(), 1000)
@@ -30,7 +29,7 @@ func msgAccept(v Message) {
 		return
 	}
 
-	if conf.LogDebug {
+	if LogDebug {
 		log.Println("[", v.Conn.sn, "] rcmd: "+strings.Join(rcmd, " "))
 	}
 

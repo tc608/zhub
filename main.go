@@ -5,9 +5,7 @@ import (
 	"os"
 	"strings"
 	"time"
-	"zhub/cli"
-	"zhub/conf"
-	"zhub/monitor"
+	"zhub/cmd"
 	"zhub/zsub"
 )
 
@@ -25,13 +23,13 @@ func main() {
 			confPath = arg[3:]
 		}
 	}
-	conf.Load(confPath)
+	zsub.LoadConf(confPath)
 	if len(addr) == 0 {
-		addr = conf.GetStr("service.zhub.servers", "127.0.0.1:1216")
+		addr = zsub.GetStr("service.zhub.servers", "127.0.0.1:1216")
 	}
 
 	if len(os.Args) == 3 && strings.EqualFold(os.Args[1], "-r") {
-		if cli, err := cli.Create(addr, "group-admin"); err != nil {
+		if cli, err := cmd.Create(addr, "group-admin"); err != nil {
 			log.Println(err)
 		} else {
 			switch os.Args[2] {
@@ -47,10 +45,10 @@ func main() {
 	}
 
 	if server {
-		go monitor.StartHttp()
+		go zsub.StartHttp()
 		zsub.ServerStart(addr) // 服务进程启动
 	} else {
-		cli.ClientRun(addr)
+		cmd.ClientRun(addr)
 	}
 
 }

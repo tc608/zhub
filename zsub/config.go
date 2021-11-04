@@ -1,4 +1,4 @@
-package conf
+package zsub
 
 import (
 	"bufio"
@@ -15,7 +15,7 @@ var (
 	DataDir  = ""
 )
 
-func Load(path string) {
+func LoadConf(path string) {
 	f, err := os.Open(path)
 	if err != nil {
 		log.Panicln(err)

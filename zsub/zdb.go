@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"zhub/conf"
 )
 
 var (
@@ -50,11 +49,11 @@ func (s *ZSub) dataStorage() {
 			s.delayup = false
 		}()
 
-		err := os.Remove(conf.DataDir + "/delay.z")
+		err := os.Remove(DataDir + "/delay.z")
 		if err != nil {
 			log.Println(err)
 		}
-		file, err := os.OpenFile(conf.DataDir+"/delay.z", os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+		file, err := os.OpenFile(DataDir+"/delay.z", os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -75,7 +74,7 @@ func (s *ZSub) dataStorage() {
 
 	// ========================== lock save ===========================
 	func() {
-		err := os.Remove(conf.DataDir + "/lock.z")
+		err := os.Remove(DataDir + "/lock.z")
 		if err != nil {
 			log.Println(err)
 		}
@@ -86,12 +85,12 @@ func (s *ZSub) dataStorage() {
 				break // 只记录获得锁的记录
 			}
 		}
-		Append(str, conf.DataDir+"/lock.z")
+		Append(str, DataDir+"/lock.z")
 	}()
 }
 
 func (s *ZSub) loadDelay() {
-	f, err := os.Open(conf.DataDir + "/delay.z")
+	f, err := os.Open(DataDir + "/delay.z")
 	if err != nil {
 		return
 	}
@@ -126,7 +125,7 @@ func (s *ZSub) loadDelay() {
 }
 
 func (s *ZSub) loadLock() {
-	f, err := os.Open(conf.DataDir + "/lock.z")
+	f, err := os.Open(DataDir + "/lock.z")
 	if err != nil {
 		return
 	}
@@ -172,12 +171,12 @@ var (
 )
 
 func init() {
-	conf.Load("app.conf")
+	LoadConf("app.conf")
 	_db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
-		conf.GetStr("ztimer.db.user", "root"),
-		conf.GetStr("ztimer.db.pwd", "123456"),
-		conf.GetStr("ztimer.db.addr", "127.0.0.1:3306"),
-		conf.GetStr("ztimer.db.database", "zhub"),
+		GetStr("ztimer.db.user", "root"),
+		GetStr("ztimer.db.pwd", "123456"),
+		GetStr("ztimer.db.addr", "127.0.0.1:3306"),
+		GetStr("ztimer.db.database", "zhub"),
 	))
 	if err != nil {
 		log.Println(err)

@@ -1,12 +1,16 @@
-package monitor
+package zsub
 
 import (
 	"encoding/json"
 	"net/http"
 	"os"
 	"path"
-	"zhub/zsub"
 )
+
+func init() {
+	// 1.日志文件 定期分割归档
+
+}
 
 func StartHttp() {
 	dir, _ := os.Getwd()
@@ -24,22 +28,23 @@ func StartHttp() {
 func publish(w http.ResponseWriter, r *http.Request) {
 	topic := r.FormValue("topic")
 	value := r.FormValue("value")
-	zsub.ZSubx().Publish(topic, value)
+	zsub.Publish(topic, value)
 	renderJson(w, "+ok")
 }
 
+// retimer 重载定时调度
 func retimer(w http.ResponseWriter, r *http.Request) {
-	zsub.ZSubx().ReloadTimer()
+	zsub.ReloadTimer()
 	renderJson(w, "+reload timer ok")
 }
 
 func cleanup(w http.ResponseWriter, r *http.Request) {
-	zsub.ZSubx().Clearup()
+	zsub.Clearup()
 	renderJson(w, "+OK")
 }
 
 func info(w http.ResponseWriter, r *http.Request) {
-	info := zsub.Info()
+	info := Info()
 	renderJson(w, info)
 }
 
