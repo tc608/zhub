@@ -53,6 +53,7 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 
 		var timerFun = func() {
 			for _, conn := range timer.conns {
+				log.Println("timer send:", rcmd[1], rcmd[2])
 				err := conn.send("timer", timer.topic)
 				if timer.single && err == nil {
 					break
@@ -242,6 +243,7 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 		go func() {
 			select {
 			case <-delay.timer.C:
+				log.Println("delay send:", rcmd[1], rcmd[2])
 				zsub.Publish(rcmd[1], rcmd[2])
 				funChan <- func() {
 					delete(s.delays, rcmd[1]+"-"+rcmd[2])
