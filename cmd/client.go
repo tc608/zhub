@@ -18,8 +18,8 @@ import (
 )
 
 type Client struct {
-	wlock sync.Mutex // write lock
-	rlock sync.Mutex // read lock
+	lock sync.Mutex // write lock
+	//rlock sync.Mutex // read lock
 
 	appname    string    // local appname
 	addr       string    // host:port
@@ -51,8 +51,7 @@ func Create(appname string, addr string, groupid string) (*Client, error) {
 	}
 
 	client := Client{
-		wlock:      sync.Mutex{},
-		rlock:      sync.Mutex{},
+		lock:       sync.Mutex{},
 		appname:    appname,
 		addr:       addr,
 		conn:       conn,
@@ -133,8 +132,8 @@ subscribe x y z
 func (c *Client) Subscribe(topic string, fun func(v string)) {
 	c.send("subscribe " + topic)
 	if fun != nil {
-		c.wlock.Lock()
-		defer c.wlock.Unlock()
+		c.lock.Lock()
+		defer c.lock.Unlock()
 		c.subFun[topic] = fun
 	}
 }
@@ -214,8 +213,8 @@ func (c *Client) Lock(key string, duration int) Lock {
 
 	lockChan := make(chan int, 2)
 	go func() {
-		c.wlock.Lock()
-		defer c.wlock.Unlock()
+		c.lock.Lock()
+		defer c.lock.Unlock()
 		c.lockFlag[uuid] = &Lock{
 			Key:      key,
 			Uuid:     uuid,
@@ -285,13 +284,6 @@ type RpcResult struct {
 
 func (r Rpc) backTopic() string {
 	return strings.Split(r.Ruk, "::")[0]
-}
-
-func (r Rpc) Retcode() int {
-	return r.RpcResult.Retcode
-}
-func (r Rpc) Retinfo() string {
-	return r.RpcResult.Retinfo
 }
 
 func (c Client) Rpc(topic string, message string, back func(res RpcResult)) {
@@ -367,8 +359,8 @@ else if len(vs) gt 1 will send message `* + len(vs)+ "\r\n"  +"$"+ len(vs[n])+ "
 */
 func (c *Client) send(vs ...string) (err error) {
 	//chSend <- vs
-	c.wlock.Lock()
-	defer c.wlock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 a:
 	if len(vs) == 1 {
 		_, err = c.conn.Write([]byte(vs[0] + "\r\n"))
@@ -390,8 +382,8 @@ a:
 }
 
 func (c *Client) receive() {
-	c.rlock.Lock()
-	defer c.rlock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	r := bufio.NewReader(c.conn)
 	for {
@@ -434,8 +426,8 @@ func (c *Client) receive() {
 				if strings.EqualFold(vs[1], "lock") { // message lock Uuid
 					go func() {
 						log.Println("lock:" + vs[2])
-						c.wlock.Lock()
-						defer c.wlock.Unlock()
+						c.lock.Lock()
+						defer c.lock.Unlock()
 
 						if c.lockFlag[vs[2]] == nil {
 							return
