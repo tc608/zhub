@@ -53,7 +53,7 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 
 		var timerFun = func() {
 			for _, conn := range timer.conns {
-				log.Println("timer send:", rcmd[1], rcmd[2])
+				log.Println("timer send:", timer.topic)
 				err := conn.send("timer", timer.topic)
 				if timer.single && err == nil {
 					break
