@@ -29,7 +29,7 @@ func main() {
 	}
 
 	if len(os.Args) == 3 && strings.EqualFold(os.Args[1], "-r") {
-		if cli, err := cmd.Create(addr, "group-admin"); err != nil {
+		if cli, err := cmd.Create("zhub-local", addr, "group-admin"); err != nil {
 			log.Println(err)
 		} else {
 			switch os.Args[2] {
