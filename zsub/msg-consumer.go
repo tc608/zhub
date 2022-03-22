@@ -118,7 +118,8 @@ func msgAccept(v Message) {
 			zsub.delay(rcmd, c)
 		case "timer":
 			for _, name := range rcmd[1:] {
-				zsub.timer([]string{"timer", name}, c)
+				zsub.timer([]string{"timer", name}, c) // append to timers
+				c.timers = append(c.timers, name)      // append to conns
 			}
 		case "cmd":
 			if len(rcmd) == 1 {
