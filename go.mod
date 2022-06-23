@@ -1,6 +1,6 @@
 module zhub
 
-go 1.16
+go 1.18
 
 require (
 	github.com/go-basic/uuid v1.0.0 // indirect

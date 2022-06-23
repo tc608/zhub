@@ -32,6 +32,10 @@ func msgAccept(v Message) {
 	if LogDebug {
 		log.Println("[", v.Conn.sn, "] rcmd: "+strings.Join(rcmd, " "))
 	}
+	if !c.auth && !strings.EqualFold("auth", rcmd[0]) && strings.EqualFold(GetStr("service.auth", "0"), "1") {
+		c.send("-Auth: NOAUTH Authentication required:" + rcmd[0])
+		return
+	}
 
 	if len(rcmd) == 1 {
 		switch strings.ToLower(rcmd[0]) {
@@ -149,6 +153,21 @@ func msgAccept(v Message) {
 				return
 			}
 			zsub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
+		case "auth":
+			if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
+				c.send("-Error: invalid password!")
+				return
+			}
+
+			inx := strings.IndexAny(rcmd[1], "@") //user@pwd
+
+			if strings.EqualFold(GetStr("auth."+rcmd[1][:inx], ""), rcmd[1][inx+1:]) {
+				c.auth = true
+				c.send("+Auth: ok!")
+			} else {
+				c.send("-Auth: invalid password!")
+			}
+			return
 		default:
 			c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 			return

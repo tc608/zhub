@@ -34,6 +34,7 @@ type Client struct {
 	chReceive    chan []string    // chan of receive message
 	timerReceive chan []string    // chan of timer
 	lockFlag     map[string]*Lock // chan of lock
+	auth         string
 }
 
 type Lock struct {
@@ -44,7 +45,7 @@ type Lock struct {
 	// duration  int    // lock duration
 }
 
-func Create(appname string, addr string, groupid string) (*Client, error) {
+func Create(appname, addr, groupid, auth string) (*Client, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return &Client{}, err
@@ -65,8 +66,10 @@ func Create(appname string, addr string, groupid string) (*Client, error) {
 		chReceive:    make(chan []string, 100),
 		timerReceive: make(chan []string, 100),
 		lockFlag:     make(map[string]*Lock),
+		auth:         auth,
 	}
 
+	client.send("auth", auth)
 	client.send("groupid " + groupid)
 	client.init()
 	return &client, err
@@ -81,6 +84,7 @@ func (c *Client) reconn() (err error) {
 			continue
 		} else if err == nil {
 			c.conn = conn
+			c.send("auth", c.auth)
 			c.send("groupid " + c.groupid)
 			go c.receive()
 
