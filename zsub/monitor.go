@@ -2,6 +2,7 @@ package zsub
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -12,7 +13,7 @@ func init() {
 
 }
 
-func StartHttp() {
+func StartWatch() {
 	dir, _ := os.Getwd()
 	webDir := path.Join(dir, "/public")
 
@@ -22,7 +23,9 @@ func StartHttp() {
 	http.HandleFunc("/retimer", retimer)
 	http.HandleFunc("/topic/publish", publish)
 
-	http.ListenAndServe(":1217", nil)
+	watchAddr := GetStr("service.zhub.watch", "0.0.0.0:1217")
+	log.Println("zhub.watch = ", watchAddr)
+	http.ListenAndServe(watchAddr, nil)
 }
 
 func publish(w http.ResponseWriter, r *http.Request) {

@@ -45,8 +45,8 @@ func main() {
 	}
 
 	if server {
-		go zsub.StartHttp()
-		zsub.ServerStart(addr) // 服务进程启动
+		go zsub.StartWatch()
+		zsub.StartServer(addr) // 服务进程启动
 	} else {
 		cmd.ClientRun(addr)
 	}

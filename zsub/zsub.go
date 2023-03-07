@@ -244,13 +244,13 @@ func (c *ZConn) removeTo(arr []*ZConn) []*ZConn {
 	return arr
 }
 
-// ServerStart ==================  ZHub server =====================================
+// StartServer ==================  ZHub server =====================================
 /*
-ServerStart
+StartServer
 1、load history data
 2、init server
 */
-func ServerStart(addr string) {
+func StartServer(addr string) {
 	GetStr("data.dir", "data")
 
 	go func() {
@@ -273,7 +273,7 @@ func ServerStart(addr string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("zhub started listen on: %s \n", addr)
+	log.Println("zhub.server = ", addr)
 
 	for {
 		conn, err := listen.Accept()
