@@ -9,11 +9,14 @@ import (
 	"zhub/zsub"
 )
 
-func main() {
-	server := true
-	confPath := "app.conf"
-	addr := ""
+var (
+	dir, _   = os.Getwd()
+	confPath = dir + "/app.ini" // 配置文件地址
+	server   = true
+	addr     = "" // 服务地址
+)
 
+func main() {
 	for _, arg := range os.Args[1:] {
 		if strings.EqualFold(arg, "cli") {
 			server = false
@@ -35,7 +38,7 @@ func main() {
 			switch os.Args[2] {
 			case "timer":
 				cli.Cmd("reload-timer")
-			case "shutdown":
+			case "shutdown", "stop":
 				cli.Cmd("shutdown")
 			}
 			cli.Close()

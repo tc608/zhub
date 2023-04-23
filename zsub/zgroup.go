@@ -1,6 +1,7 @@
 package zsub
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 )
@@ -37,9 +38,12 @@ func (g *ZGroup) appendTo(c *ZConn) {
 
 				err := c.send("message", topic, msg)
 				if err != nil { // 失败处理
+					log.Println("topic send err:", err)
 					g.chMsg <- msg
 					return
 				}
+
+				//log.Printf("[ %d ] topic send: %s %s\n", c.sn, topic, msg)
 				atomic.AddInt32(&g.offset, 1)
 			case <-c.stoped:
 				return

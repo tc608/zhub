@@ -251,8 +251,6 @@ StartServer
 2、init server
 */
 func StartServer(addr string) {
-	GetStr("data.dir", "data")
-
 	go func() {
 		for {
 			fun, ok := <-funChan
@@ -273,7 +271,7 @@ func StartServer(addr string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("zhub.server = ", addr)
+	log.Println("zhub.server =", addr)
 
 	for {
 		conn, err := listen.Accept()

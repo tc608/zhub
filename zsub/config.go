@@ -10,12 +10,14 @@ import (
 )
 
 var (
+	dir, _   = os.Getwd()
 	config   = make(map[string]string)
 	LogDebug bool
-	DataDir  = ""
+	datadir  = dir + "/data"
 )
 
 func LoadConf(path string) {
+	//log.Println("APP_CONF =", path)
 	f, err := os.Open(path)
 	if err != nil {
 		log.Panicln(err)
@@ -55,8 +57,14 @@ func LoadConf(path string) {
 	}
 
 	LogDebug = strings.EqualFold(config["log.level"], "debug")
-	DataDir = GetStr("data.dir", "data")
-	os.MkdirAll(DataDir, os.ModeDir)
+
+	datadir = GetStr("data.dir", "${APP_HOME}/data")
+	datadir = strings.ReplaceAll(datadir, "${APP_HOME}", dir)
+
+	os.MkdirAll(datadir, os.ModeDir)
+	os.Chmod(datadir, 0777)
+
+	initLog()
 }
 
 func GetStr(key string, def string) string {
@@ -76,4 +84,50 @@ func GetInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+func initLog() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("initLog Err:", r)
+		}
+	}()
+
+	file, err := os.OpenFile("zhub.log", os.O_CREATE|os.O_APPEND|os.O_SYNC|os.O_RDWR, 0777)
+	if err != nil {
+		log.Println(err)
+	}
+	log.SetOutput(file)
+
+	/*
+		if strings.EqualFold(GetStr("log.handlers", "console"), "console") {
+			return
+		}
+
+		var logfile = GetStr("log.pattern", "${APP_HOME}/logs-200601/log-20060102.log")
+
+		c := cron.New()
+		fun := func() {
+			now := time.Now()
+			logfile := strings.ReplaceAll(logfile, "${APP_HOME}", dir)
+			logfile = now.Format(logfile)
+
+			if strings.LastIndexAny(logfile, "/") > 0 {
+				logdir := logfile[0:strings.LastIndexAny(logfile, "/")]
+				os.MkdirAll(logdir, 0666)
+			}
+
+			file, err := os.OpenFile(logfile, os.O_CREATE|os.O_APPEND|os.O_SYNC|os.O_RDWR, 0777)
+			if err != nil {
+				log.Println(err)
+			}
+
+			//log.Println("SET LOG_FILE =", file.Name())
+			log.SetOutput(file)
+		}
+		fun()
+
+		c.AddFunc("0 0 * * * *", fun)
+		go c.Run()
+	*/
 }

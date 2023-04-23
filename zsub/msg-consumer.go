@@ -30,7 +30,7 @@ func msgAccept(v Message) {
 	}
 
 	if LogDebug {
-		log.Println("[", v.Conn.sn, "] rcmd: "+strings.Join(rcmd, " "))
+		log.Printf("[%d] rcmd: %s\n", v.Conn.sn, strings.Join(rcmd, " "))
 	}
 	if !c.auth && !strings.EqualFold("auth", rcmd[0]) && strings.EqualFold(GetStr("service.auth", "0"), "1") {
 		c.send("-Auth: NOAUTH Authentication required:" + rcmd[0])

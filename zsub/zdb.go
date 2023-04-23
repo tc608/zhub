@@ -38,6 +38,12 @@ func Append(str string, fileName string) {
 
 // 数据持久化
 func (s *ZSub) dataStorage() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("dataStorage Recovered:", r)
+		}
+	}()
+
 	s.Lock()
 	defer s.Unlock()
 	// ========================== delay save ===========================
@@ -49,11 +55,11 @@ func (s *ZSub) dataStorage() {
 			s.delayup = false
 		}()
 
-		err := os.Remove(DataDir + "/delay.z")
+		err := os.Remove(datadir + "/delay.z")
 		if err != nil {
 			log.Println(err)
 		}
-		file, err := os.OpenFile(DataDir+"/delay.z", os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+		file, err := os.OpenFile(datadir+"/delay.z", os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -74,7 +80,7 @@ func (s *ZSub) dataStorage() {
 
 	// ========================== lock save ===========================
 	func() {
-		err := os.Remove(DataDir + "/lock.z")
+		err := os.Remove(datadir + "/lock.z")
 		if err != nil {
 			log.Println(err)
 		}
@@ -85,12 +91,12 @@ func (s *ZSub) dataStorage() {
 				break // 只记录获得锁的记录
 			}
 		}
-		Append(str, DataDir+"/lock.z")
+		Append(str, datadir+"/lock.z")
 	}()
 }
 
 func (s *ZSub) loadDelay() {
-	f, err := os.Open(DataDir + "/delay.z")
+	f, err := os.Open(datadir + "/delay.z")
 	if err != nil {
 		return
 	}
@@ -125,7 +131,7 @@ func (s *ZSub) loadDelay() {
 }
 
 func (s *ZSub) loadLock() {
-	f, err := os.Open(DataDir + "/lock.z")
+	f, err := os.Open(datadir + "/lock.z")
 	if err != nil {
 		return
 	}
@@ -171,7 +177,7 @@ var (
 )
 
 func init() {
-	LoadConf("app.conf")
+	//LoadConf("app.conf")
 	/*
 		_db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
 			GetStr("ztimer.db.user", "root"),
