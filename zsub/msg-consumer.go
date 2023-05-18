@@ -32,7 +32,7 @@ func msgAccept(v Message) {
 	if LogDebug {
 		log.Printf("[%d] rcmd: %s\n", v.Conn.sn, strings.Join(rcmd, " "))
 	}
-	if !c.auth && !strings.EqualFold("auth", rcmd[0]) && strings.EqualFold(GetStr("service.auth", "0"), "1") {
+	if strings.TrimSpace(c.auth) == "" && !strings.EqualFold("auth", rcmd[0]) && strings.EqualFold(GetStr("service.auth", "0"), "1") {
 		c.send("-Auth: NOAUTH Authentication required:" + rcmd[0])
 		return
 	}
@@ -162,7 +162,7 @@ func msgAccept(v Message) {
 			inx := strings.IndexAny(rcmd[1], "@") //user@pwd
 
 			if strings.EqualFold(GetStr("auth."+rcmd[1][:inx], ""), rcmd[1][inx+1:]) {
-				c.auth = true
+				c.auth = rcmd[1][:inx]
 				c.send("+Auth: ok!")
 			} else {
 				c.send("-Auth: invalid password!")

@@ -87,7 +87,7 @@ type ZConn struct { //ZConn
 	substoped map[string]chan int // 关闭信号量
 	ping      int64               // 最后心跳时间
 	pong      int64               // 最后心跳回复时间
-	auth      bool                // 是否已验证授权
+	auth      string              // 是否已验证授权
 }
 
 type Lock struct {
