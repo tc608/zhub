@@ -1,17 +1,14 @@
 package zsub
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/robfig/cron"
 	"log"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -98,71 +95,6 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 		timer.single = strings.EqualFold("a", rcmd[3])
 		//timer.configSave()
 	}
-}
-
-/*func (t *ZTimer) close(c *ZConn) {
-	for i, item := range t.conns {
-		if item.conn == c.conn {
-			t.conns = append(t.conns[:i], t.conns[i+1:]...)
-		}
-	}
-}*/
-
-func (t *ZTimer) configSave() {
-	tpl, err := template.New("").Parse(`
-	if [ ! -d "/etc/zhub" ]; then
-	  mkdir /etc/zhub
-	fi
-	if [ ! -f "/etc/zhub/ztimer.cron" ]; then
-	  touch /etc/zhub/ztimer.cron
-	fi
-
-	sed -i /^{{.Name}}\|*/d /etc/zhub/ztimer.cron
-	echo '{{.Name}}|{{.Expr}}|{{.Single}}' >> /etc/zhub/ztimer.cron
-	`)
-
-	if err != nil {
-		log.Println(err)
-	}
-
-	var buf bytes.Buffer
-	err = tpl.Execute(&buf, map[string]string{
-		"Name": t.topic,
-		"Expr": t.expr,
-		"Single": func() string {
-			if t.single {
-				return "a"
-			} else {
-				return "x"
-			}
-		}(),
-	})
-	if err != nil {
-		log.Println(err)
-	}
-
-	//fmt.Println(buf.String())
-
-	rest, err, s := executeShell(buf.String())
-	if err != nil {
-		log.Println(err)
-	}
-	if !strings.EqualFold(rest, "") {
-		fmt.Println("res:", rest)
-	}
-	if !strings.EqualFold(s, "") {
-		fmt.Println("error-rest:", s)
-	}
-}
-
-func executeShell(command string) (string, error, string) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command("/bin/bash", "-c", command)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	return stdout.String(), err, stderr.String()
 }
 
 func (s *ZSub) ReloadTimer() {
