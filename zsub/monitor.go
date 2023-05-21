@@ -23,7 +23,7 @@ func StartWatch() {
 	http.HandleFunc("/retimer", retimer)
 	http.HandleFunc("/topic/publish", publish)
 
-	watchAddr := GetStr("service.zhub.watch", "0.0.0.0:1217")
+	watchAddr := Conf.Service.Watch
 	log.Println("zhub.watch = ", watchAddr)
 	http.ListenAndServe(watchAddr, nil)
 }

@@ -23,10 +23,10 @@ func (t *ZTopic) init() {
 				break
 			}
 
-			for name, group := range t.groups {
+			for groupName, group := range t.groups {
 				// zgroup chan overload check
 				if len(group.chMsg) == cap(group.chMsg) {
-					log.Println(fmt.Sprintf("zgroup no cap: [%s.%s %s]", name, t.topic, msg))
+					log.Println(fmt.Sprintf("zgroup no cap: [%s.%s %s]", groupName, t.topic, msg))
 					continue
 				}
 				group.chMsg <- msg

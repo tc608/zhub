@@ -1,57 +1,48 @@
 package main
 
 import (
+	"flag"
 	"log"
-	"os"
-	"strings"
-	"time"
 	"zhub/cmd"
+	"zhub/internal/config"
 	"zhub/zsub"
 )
 
-var (
-	dir, _   = os.Getwd()
-	confPath = dir + "/app.ini" // 配置文件地址
-	server   = true
-	addr     = "" // 服务地址
-)
-
 func main() {
-	for _, arg := range os.Args[1:] {
-		if strings.EqualFold(arg, "cli") {
-			server = false
-		} else if strings.Index(arg, "-d=") == 0 {
-			addr = arg[3:]
-		} else if strings.Index(arg, "-c=") == 0 {
-			confPath = arg[3:]
-		}
-	}
-	zsub.LoadConf(confPath)
-	if len(addr) == 0 {
-		addr = zsub.GetStr("service.zhub.servers", "127.0.0.1:1216")
-	}
+	var isCliMode bool                                           // 是否以客户端模式运行的标志
+	var rcmd string                                              // 客户端模式下运行的命令
+	flag.BoolVar(&isCliMode, "cli", false, "run as client mode") // 定义 cli 参数
+	flag.StringVar(&rcmd, "r", "", "run as client mode")         // 定义 r 参数
+	flag.Parse()                                                 // 解析命令行参数
 
-	if len(os.Args) == 3 && strings.EqualFold(os.Args[1], "-r") {
-		if cli, err := cmd.Create("zhub-local", addr, "group-admin", "zchd@123456"); err != nil {
-			log.Println(err)
-		} else {
-			switch os.Args[2] {
-			case "timer":
-				cli.Cmd("reload-timer")
-			case "shutdown", "stop":
-				cli.Cmd("shutdown")
-			}
-			cli.Close()
-			time.Sleep(time.Millisecond * 10)
+	conf := config.ReadConfig() // 读取配置文件
+	addr := conf.Service.Addr   // 获取服务地址
+	config.InitLog(conf.Log)    // 初始化日志配置
+
+	if rcmd != "" { // 如果指定了客户端命令
+		auth := ""                          // 认证信息
+		for key, value := range conf.Auth { // 遍历找到一个认证信息
+			auth = key + "@" + value
+			break
+		}
+		cli, err := cmd.Create("zhub-local", addr, "group-admin", auth) // 创建客户端连接
+		if err != nil {
+			log.Println(err) // 如果连接失败则打印错误信息
+			return
+		}
+		defer cli.Close() // 延迟关闭客户端连接
+		switch rcmd {
+		case "timer":
+			cli.Cmd("reload-timer")
+		case "shutdown", "stop":
+			cli.Cmd("shutdown")
 		}
 		return
 	}
-
-	if server {
-		go zsub.StartWatch()
-		zsub.StartServer(addr) // 服务进程启动
+	if isCliMode {
+		cmd.ClientRun(addr) // 客户端运行
 	} else {
-		cmd.ClientRun(addr)
+		go zsub.StartWatch()         // 启动监控协程
+		zsub.StartServer(addr, conf) // 启动服务进程
 	}
-
 }

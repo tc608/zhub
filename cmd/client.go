@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-basic/uuid"
+	"io"
 	"unicode/utf8"
 
 	//"github.com/go-basic/uuid"
@@ -128,12 +129,7 @@ func (c *Client) init() {
 	go c.receive()
 }
 
-/*
 // subscribe topic
----
-subscribe x y z
----
-*/
 func (c *Client) Subscribe(topic string, fun func(v string)) {
 	c.send("subscribe " + topic)
 	if fun != nil {
@@ -158,18 +154,6 @@ func (c *Client) ping() {
 }
 
 //Publish -------------------------------------- pub-sub --------------------------------------
-/*
-send topic message :
----
-*3
-$7
-message
-$8
-my-topic
-$24
-{username:xx,mobile:xxx}
----
-*/
 func (c *Client) Publish(topic string, message string) error {
 	return c.send("publish", topic, message)
 }
@@ -344,19 +328,6 @@ func (c Client) RpcSubscribe(topic string, fun func(Rpc Rpc) RpcResult) {
 
 // --------------------------------------------------------------------------------
 
-/*func (c *Client) subscribes(topics ...string) error {
-	if len(topics) == 0 {
-		return nil
-	}
-
-	messages := "subscribe"
-	for _, topic := range topics {
-		messages += " " + topic
-	}
-	c.send(messages)
-	return nil
-}*/
-
 /*
 send socket message :
 if len(vs) equal 1 will send message `vs[0] + "\r\n"`
@@ -387,85 +358,63 @@ a:
 }
 
 func (c *Client) receive() {
-	c.rlock.Lock()
-	defer c.rlock.Unlock()
-
 	r := bufio.NewReader(c.conn)
 	for {
 		v, _, err := r.ReadLine()
 		if err != nil {
-			log.Println("receive error and reconn: ", err)
-			if err = c.reconn(); err == nil {
-				r = bufio.NewReader(c.conn)
-			} else {
-
-			}
-			time.Sleep(time.Second * 3)
-			continue
-		} else if len(v) == 0 {
-			log.Println("receive empty")
+			log.Println(err)
+			return
+		}
+		if len(v) == 0 {
 			continue
 		}
-
-		switch string(v[0:1]) {
-		case "*": // 订阅消息
-			// 数据行数
-			vlen, err := strconv.Atoi(string(v[1:]))
-			if err != nil {
-				log.Println("receive parse len error: ", err, string(v))
-				continue
-			}
-
-			// 读取完整数据
-			vs := make([]string, 0)
-			for i := 0; i < vlen; i++ {
-				r.ReadLine() // $x
-				v, _, err = r.ReadLine()
-				if err != nil {
-					log.Println("receive parse v error: ", err)
-				}
-				vs = append(vs, string(v))
-			}
-
-			if len(vs) == 3 && strings.EqualFold(vs[0], "message") {
-				if strings.EqualFold(vs[1], "lock") { // message lock Uuid
-					go func() {
-						log.Println("lock:" + vs[2])
-						c.wlock.Lock()
-						defer c.wlock.Unlock()
-
-						if c.lockFlag[vs[2]] == nil {
-							return
-						}
-						c.lockFlag[vs[2]].flagChan <- 0
-					}()
-					continue
-				}
-				c.chReceive <- vs
-				continue
-			}
-			if len(vs) == 2 && strings.EqualFold(vs[0], "timer") {
-				c.timerReceive <- vs
-				continue
-			}
-			/*if len(vs) == 2 && strings.EqualFold(vs[0], "delay") {
-				c.delayFun[vs[1]]()
-				delete(c.delayFun, vs[1])
-				continue
-			}*/
-
-			continue
-		case "+": // +pong, +xxx
-			if strings.EqualFold("+ping", string(v)) { // 心跳消息回复
+		switch string(v[0]) {
+		case "+":
+			if string(v) == "+ping" {
 				c.send("+pong")
 			}
 		case "-":
-			fmt.Println("error:", string(v))
-		case ":":
-
+			log.Println("error:", string(v))
+		case "*":
+			n, err := strconv.Atoi(string(v[1:]))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			var vs []string
+			for i := 0; i < n; i++ {
+				line, _, err := r.ReadLine()
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				clen, _ := strconv.Atoi(string(line[1:]))
+				buf := make([]byte, clen)
+				_, err = io.ReadFull(r, buf)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				vs = append(vs, string(buf))
+			}
+			if len(vs) == 3 && vs[0] == "message" && vs[1] == "lock" {
+				go func() {
+					log.Println("lock:" + vs[2])
+					c.wlock.Lock()
+					defer c.wlock.Unlock()
+					if c.lockFlag[vs[2]] == nil {
+						return
+					}
+					c.lockFlag[vs[2]].flagChan <- 0
+				}()
+				continue
+			}
+			if len(vs) == 2 && vs[0] == "timer" {
+				c.timerReceive <- vs
+				continue
+			}
 		}
 	}
-
 }
 
 // -------------------------------------- k-v --------------------------------------

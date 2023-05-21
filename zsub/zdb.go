@@ -64,16 +64,19 @@ func (s *ZSub) dataStorage() {
 			fmt.Println(err)
 		}
 		defer file.Close()
-		writer := bufio.NewWriter(file)
-		delays2 := s.delays
 
-		for _, delay := range delays2 {
-			writer.WriteString(delay.topic)
+		writer := bufio.NewWriter(file)
+		_delays := s.delays
+
+		for _, delay := range _delays {
+			delayStr := fmt.Sprintf("%s %s %d\n", delay.topic, delay.value, delay.exectime.Unix())
+			writer.WriteString(delayStr)
+			/*writer.WriteString(delay.topic)
 			writer.WriteString(" ")
 			writer.WriteString(delay.value)
 			writer.WriteString(" ")
 			writer.WriteString(strconv.FormatInt(delay.exectime.Unix(), 10))
-			writer.WriteString("\n")
+			writer.WriteString("\n")*/
 		}
 		writer.Flush()
 	}()

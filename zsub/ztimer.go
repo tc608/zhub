@@ -99,10 +99,14 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 
 func (s *ZSub) ReloadTimer() {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
-		GetStr("ztimer.db.user", "root"),
+		Conf.Ztimer.Db.User,
+		Conf.Ztimer.Db.Password,
+		Conf.Ztimer.Db.Addr,
+		Conf.Ztimer.Db.Database,
+		/*GetStr("ztimer.db.user", "root"),
 		GetStr("ztimer.db.pwd", "123456"),
 		GetStr("ztimer.db.addr", "127.0.0.1:3306"),
-		GetStr("ztimer.db.database", "zhub"),
+		GetStr("ztimer.db.database", "zhub"),*/
 	))
 
 	if err != nil {

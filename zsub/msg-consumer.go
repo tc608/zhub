@@ -29,10 +29,30 @@ func msgAccept(v Message) {
 		return
 	}
 
-	if LogDebug {
-		log.Printf("[%d] rcmd: %s\n", v.Conn.sn, strings.Join(rcmd, " "))
+	if Conf.Log.Level == "debug" && rcmd[0] != "auth" {
+		log.Printf("[%d] cmd: %s\n", v.Conn.sn, strings.Join(rcmd, " "))
+	} else if rcmd[0] == "auth" {
+		if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
+			c.send("-Error: invalid password!")
+			return
+		}
+
+		inx := strings.IndexAny(rcmd[1], "@") //user@pwd
+
+		authKey := rcmd[1][:inx]              //user
+		authValue := Conf.Auth[rcmd[1][:inx]] //pwd
+		if strings.EqualFold(authValue, rcmd[1][inx+1:]) {
+			c.auth = rcmd[1][:inx]
+			c.send("+Auth: ok!")
+			log.Printf("[%d] cmd: %s\n", v.Conn.sn, "auth "+authKey+"@******* "+"[OK]")
+		} else {
+			c.send("-Auth: invalid password!")
+			log.Printf("[%d] cmd: %s\n", v.Conn.sn, "auth "+authKey+"@******* "+"[Error]")
+		}
+		return
 	}
-	if strings.TrimSpace(c.auth) == "" && !strings.EqualFold("auth", rcmd[0]) && strings.EqualFold(GetStr("service.auth", "0"), "1") {
+
+	if strings.TrimSpace(c.auth) == "" && rcmd[0] != "auth" && Conf.Service.Auth {
 		c.send("-Auth: NOAUTH Authentication required:" + rcmd[0])
 		return
 	}
@@ -153,21 +173,22 @@ func msgAccept(v Message) {
 				return
 			}
 			zsub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
-		case "auth":
-			if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
-				c.send("-Error: invalid password!")
-				return
-			}
-
-			inx := strings.IndexAny(rcmd[1], "@") //user@pwd
-
-			if strings.EqualFold(GetStr("auth."+rcmd[1][:inx], ""), rcmd[1][inx+1:]) {
-				c.auth = rcmd[1][:inx]
-				c.send("+Auth: ok!")
-			} else {
-				c.send("-Auth: invalid password!")
-			}
+		/*case "auth":
+		if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
+			c.send("-Error: invalid password!")
 			return
+		}
+
+		inx := strings.IndexAny(rcmd[1], "@") //user@pwd
+
+		authKey := Conf.Auth[rcmd[1][:inx]]
+		if strings.EqualFold(authKey, rcmd[1][inx+1:]) {
+			c.auth = rcmd[1][:inx]
+			c.send("+Auth: ok!")
+		} else {
+			c.send("-Auth: invalid password!")
+		}
+		return*/
 		default:
 			c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 			return

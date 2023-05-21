@@ -12,10 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+	"zhub/internal/config"
 )
 
 var (
-	zsub = &ZSub{
+	Conf    config.Config
+	datadir string
+	zsub    = &ZSub{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
 		delays: make(map[string]*ZDelay),
@@ -55,7 +58,7 @@ func init() {
 
 				// close
 				for _, c := range conns {
-					log.Println("========================================= conn ping close:", (*c.conn).RemoteAddr(), "[", c.groupid, "] =========================================")
+					log.Printf("========================================= conn ping close:%s [%d] =========================================\n", (*c.conn).RemoteAddr(), c.sn)
 					c.close()
 				}
 
@@ -250,7 +253,10 @@ StartServer
 1、load history data
 2、init server
 */
-func StartServer(addr string) {
+func StartServer(addr string, conf config.Config) {
+	Conf = conf
+	datadir = conf.Data.Dir
+
 	go func() {
 		for {
 			fun, ok := <-funChan
@@ -281,7 +287,7 @@ func StartServer(addr string) {
 		}
 		zConn := NewZConn(&conn)
 
-		log.Println("conn start:", conn.RemoteAddr(), "[", zConn.sn, "]")
+		log.Printf("conn start: %s [%d]\n", conn.RemoteAddr(), zConn.sn)
 		go zsub.acceptHandler(zConn)
 	}
 }
