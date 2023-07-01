@@ -1,4 +1,4 @@
-package zsub
+package monitor
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"zhub/internal/zsub"
 )
 
 func init() {
@@ -23,7 +24,7 @@ func StartWatch() {
 	http.HandleFunc("/retimer", retimer)
 	http.HandleFunc("/topic/publish", publish)
 
-	watchAddr := Conf.Service.Watch
+	watchAddr := zsub.Conf.Service.Watch
 	log.Println("zhub.watch = ", watchAddr)
 	http.ListenAndServe(watchAddr, nil)
 }
@@ -31,23 +32,23 @@ func StartWatch() {
 func publish(w http.ResponseWriter, r *http.Request) {
 	topic := r.FormValue("topic")
 	value := r.FormValue("value")
-	zsub.Publish(topic, value)
+	zsub.Hub.Publish(topic, value)
 	renderJson(w, "+ok")
 }
 
 // retimer 重载定时调度
 func retimer(w http.ResponseWriter, r *http.Request) {
-	zsub.ReloadTimer()
+	zsub.Hub.ReloadTimer()
 	renderJson(w, "+reload timer ok")
 }
 
 func cleanup(w http.ResponseWriter, r *http.Request) {
-	zsub.Clearup()
+	zsub.Hub.Clearup()
 	renderJson(w, "+OK")
 }
 
 func info(w http.ResponseWriter, r *http.Request) {
-	info := Info()
+	info := zsub.Info()
 	renderJson(w, info)
 }
 

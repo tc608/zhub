@@ -16,9 +16,8 @@ import (
 )
 
 var (
-	Conf    config.Config
-	datadir string
-	zsub    = &ZSub{
+	Conf config.Config
+	Hub  = &ZSub{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
 		delays: make(map[string]*ZDelay),
@@ -42,7 +41,7 @@ func init() {
 					}
 				}()
 				conns := make([]*ZConn, 0) // 需要关闭的连接
-				for _, c := range zsub.conns {
+				for _, c := range Hub.conns {
 					if c.ping > 0 && c.ping-c.pong > 19 {
 						conns = c.appendTo(conns)
 						continue
@@ -64,7 +63,7 @@ func init() {
 
 			}
 
-			zsub.dataStorage()
+			Hub.SaveData()
 		}
 	}()
 }
@@ -120,9 +119,9 @@ func NewZConn(conn *net.Conn) *ZConn {
 3、若有待消费消息启动消费
 */
 func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
-	zsub.Lock()
-	defer zsub.Unlock()
-	ztopic := zsub.topics[topic] //ZTopic
+	Hub.Lock()
+	defer Hub.Unlock()
+	ztopic := Hub.topics[topic] //ZTopic
 	if ztopic == nil {
 		ztopic = &ZTopic{
 			groups: map[string]*ZGroup{},
@@ -130,7 +129,7 @@ func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
 			chMsg:  make(chan string, 500),
 		}
 		ztopic.init()
-		zsub.topics[topic] = ztopic
+		Hub.topics[topic] = ztopic
 	}
 
 	zgroup := ztopic.groups[c.groupid] //ZGroup
@@ -160,7 +159,7 @@ func (c *ZConn) unsubscribe(topic string) { // 取消订阅 zconn{}
 	c.Lock()
 	defer c.Unlock()
 	close(c.substoped[topic])
-	ztopic := zsub.topics[topic] //ZTopic
+	ztopic := Hub.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
 	}
@@ -206,17 +205,17 @@ func (c *ZConn) close() {
 	}
 
 	// timer conn close
-	zsub.Lock()
-	defer zsub.Unlock()
+	Hub.Lock()
+	defer Hub.Unlock()
 	for _, topic := range c.timers { // fixme: 数据逻辑交叉循环
-		timer := zsub.timers[topic]
+		timer := Hub.timers[topic]
 		if timer == nil {
 			continue
 		}
 
-		for i, item := range timer.conns {
+		for i, item := range timer.Conns {
 			if item == c {
-				timer.conns = append(timer.conns[:i], timer.conns[i+1:]...)
+				timer.Conns = append(timer.Conns[:i], timer.Conns[i+1:]...)
 			}
 		}
 	}
@@ -268,9 +267,8 @@ func StartServer(addr string, conf config.Config) {
 	}()
 
 	// 重新加载[定时、延时]
-	go zsub.ReloadTimer()
-	go zsub.loadDelay()
-	//go zsub.loadLock()
+	go Hub.ReloadTimer()
+	go Hub.LoadData()
 
 	// 启动服务监听
 	listen, err := net.Listen("tcp", addr)
@@ -288,22 +286,22 @@ func StartServer(addr string, conf config.Config) {
 		zConn := NewZConn(&conn)
 
 		log.Printf("conn start: %s [%d]\n", conn.RemoteAddr(), zConn.sn)
-		go zsub.acceptHandler(zConn)
+		go Hub.handlerConn(zConn)
 	}
 }
 
 // 连接处理
-func (s *ZSub) acceptHandler(c *ZConn) {
+func (s *ZSub) handlerConn(c *ZConn) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("acceptHandler Recovered:", r)
+			log.Println("handlerConn Recovered:", r)
 		}
 		log.Println("conn closed:", (*c.conn).RemoteAddr(), "[", c.sn, "]")
 	}()
 	defer func() {
 		// conn remove to conns
 		funChan <- func() {
-			zsub.conns = c.removeTo(zsub.conns)
+			Hub.conns = c.removeTo(Hub.conns)
 		}
 
 		// close ZConn
@@ -312,7 +310,7 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 
 	// conn add to conns
 	funChan <- func() {
-		zsub.conns = c.appendTo(zsub.conns)
+		Hub.conns = c.appendTo(Hub.conns)
 	}
 
 	reader := bufio.NewReader(*c.conn)
@@ -358,7 +356,7 @@ func (s *ZSub) acceptHandler(c *ZConn) {
 			continue
 		}
 
-		msgAccept(Message{Conn: c, Rcmd: rcmd})
+		handleMessage(Message{Conn: c, Rcmd: rcmd})
 	}
 }
 
@@ -458,14 +456,14 @@ func (s *ZSub) _unlock(l Lock) {
 }
 
 func (s *ZSub) shutdown() {
-	s.dataStorage()
+	s.SaveData()
 	os.Exit(0)
 }
 
 func Info() map[string]interface{} {
 	// topics
 	topics := map[string]interface{}{}
-	for s, topic := range zsub.topics {
+	for s, topic := range Hub.topics {
 		// {groups:[{name:xxx,size:xx}]}
 		arr := make([]map[string]interface{}, 0)
 
@@ -482,7 +480,7 @@ func Info() map[string]interface{} {
 
 	// conns
 	conns := make([]interface{}, 0)
-	for _, c := range zsub.conns {
+	for _, c := range Hub.conns {
 		m := make(map[string]interface{}, 0)
 		m["remoteaddr"] = (*c.conn).RemoteAddr()
 		m["groupid"] = c.groupid
@@ -495,9 +493,9 @@ func Info() map[string]interface{} {
 	info := map[string]interface{}{
 		"topics":    topics,
 		"topicsize": len(topics),
-		"timersize": len(zsub.timers),
+		"timersize": len(Hub.timers),
 		"conns":     conns,
-		"connsize":  len(zsub.conns),
+		"connsize":  len(Hub.conns),
 	}
 	return info
 }

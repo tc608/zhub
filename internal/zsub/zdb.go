@@ -2,7 +2,6 @@ package zsub
 
 import (
 	"bufio"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -11,10 +10,9 @@ import (
 	"time"
 )
 
-/*
 var (
-	topicChan = make(chan []string, 1000) //接收到的 所有消息数据, 用于写入数据库持久化
-)*/
+	datadir string
+)
 
 // Message 数据封装
 type Message struct {
@@ -36,11 +34,10 @@ func Append(str string, fileName string) {
 	}
 }
 
-// 数据持久化
-func (s *ZSub) dataStorage() {
+func (s *ZSub) SaveData() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("dataStorage Recovered:", r)
+			log.Println("SaveData Recovered:", r)
 		}
 	}()
 
@@ -69,14 +66,8 @@ func (s *ZSub) dataStorage() {
 		_delays := s.delays
 
 		for _, delay := range _delays {
-			delayStr := fmt.Sprintf("%s %s %d\n", delay.topic, delay.value, delay.exectime.Unix())
+			delayStr := fmt.Sprintf("%s %s %d\n", delay.Topic, delay.Value, delay.Exectime.Unix())
 			writer.WriteString(delayStr)
-			/*writer.WriteString(delay.topic)
-			writer.WriteString(" ")
-			writer.WriteString(delay.value)
-			writer.WriteString(" ")
-			writer.WriteString(strconv.FormatInt(delay.exectime.Unix(), 10))
-			writer.WriteString("\n")*/
 		}
 		writer.Flush()
 	}()
@@ -96,6 +87,11 @@ func (s *ZSub) dataStorage() {
 		}
 		Append(str, datadir+"/lock.z")
 	}()
+}
+
+func (s *ZSub) LoadData() {
+	s.loadDelay()
+	// s.loadLock()
 }
 
 func (s *ZSub) loadDelay() {
@@ -171,70 +167,4 @@ func (s *ZSub) loadLock() {
 			// start:    start,
 		})
 	}
-}
-
-// --------------------------------------
-var (
-	db  *sql.DB
-	seq int64 = 50000
-)
-
-func init() {
-	//LoadConf("app.conf")
-	/*
-		_db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
-			GetStr("ztimer.db.user", "root"),
-			GetStr("ztimer.db.pwd", "123456"),
-			GetStr("ztimer.db.addr", "127.0.0.1:3306"),
-			GetStr("ztimer.db.database", "zhub"),
-		))
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		db = _db
-
-		// 批量写入数据库，等待超时5秒，如有数据写入数据
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Println("MsgToDb Recovered:", r)
-				}
-			}()
-
-			var flagcount = 0
-			var _sql = "INSERT INTO zhub.topicmessage (`msgid`,`topic`,`value`,`createtime`) VALUES \n"
-			for {
-				select {
-				case msg := <-topicChan:
-					var topic, value = msg[1], msg[2]
-					var t = time.Now().UnixNano() / 1e6
-					_sql += fmt.Sprintf("('%s','%s','%s',%d),\n",
-						strconv.FormatInt(t, 36)+"-"+strconv.FormatInt(atomic.AddInt64(&seq, 1), 36), topic, value, t)
-					flagcount++
-				case <-time.After(time.Second * 5): // 等待5秒
-					if flagcount > 0 {
-						flagcount = 100
-					}
-				}
-
-				if flagcount != 100 {
-					continue
-				}
-
-				_sql = _sql[:len(_sql)-2]
-				_sql += ";"
-
-				_, err = db.Exec(_sql)
-				if err != nil {
-					log.Println(err)
-				}
-
-				_sql = "INSERT INTO zhub.topicmessage (`msgid`,`topic`,`value`,`createtime`) VALUES \n"
-				flagcount = 0
-			}
-		}()
-	*/
 }

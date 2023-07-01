@@ -5,7 +5,8 @@ import (
 	"log"
 	"zhub/cmd"
 	"zhub/internal/config"
-	"zhub/zsub"
+	"zhub/internal/monitor"
+	"zhub/internal/zsub"
 )
 
 func main() {
@@ -18,6 +19,15 @@ func main() {
 	conf := config.ReadConfig() // 读取配置文件
 	addr := conf.Service.Addr   // 获取服务地址
 	config.InitLog(conf.Log)    // 初始化日志配置
+
+	{
+		/*
+			使用环境变量覆盖 配置文件参数 TODO
+			port, err := strconv.Atoi(os.Getenv("PORT"))
+			if err != nil {
+				port = 6066
+			}*/
+	}
 
 	if rcmd != "" { // 如果指定了客户端命令
 		auth := ""                          // 认证信息
@@ -42,7 +52,7 @@ func main() {
 	if isCliMode {
 		cmd.ClientRun(addr) // 客户端运行
 	} else {
-		go zsub.StartWatch()         // 启动监控协程
+		go monitor.StartWatch()      // 启动监控协程
 		zsub.StartServer(addr, conf) // 启动服务进程
 	}
 }

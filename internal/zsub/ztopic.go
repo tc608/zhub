@@ -34,5 +34,3 @@ func (t *ZTopic) init() {
 		}
 	}()
 }
-
-//

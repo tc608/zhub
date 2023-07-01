@@ -10,10 +10,10 @@ import (
 
 var funChan = make(chan func(), 1000)
 
-func msgAccept(v Message) {
+func handleMessage(v Message) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("msgAccept Recovered:", r)
+			log.Println("handleMessage Recovered:", r)
 		}
 	}()
 	c := v.Conn
@@ -87,13 +87,13 @@ func msgAccept(v Message) {
 		return
 	case "rpc":
 		// if rpc and  no sub back error
-		if zsub.noSubscribe(rcmd[1]) {
+		if Hub.noSubscribe(rcmd[1]) {
 			rpcBody := make(map[string]string)
 			json.Unmarshal([]byte(rcmd[2]), &rpcBody)
 			log.Println("rpc no subscribe: ", rcmd[1])
 
 			ruk := rpcBody["ruk"]
-			zsub.Publish(strings.Split(ruk, "::")[0], "{'retcode': 404, 'retinfo': '服务离线！', 'ruk': '"+ruk+"'}")
+			Hub.Publish(strings.Split(ruk, "::")[0], "{'retcode': 404, 'retinfo': '服务离线！', 'ruk': '"+ruk+"'}")
 			return
 		}
 
@@ -103,7 +103,7 @@ func msgAccept(v Message) {
 			/*if len(topicChan) < cap(topicChan) {
 				topicChan <- rcmd
 			}*/
-			zsub.Publish(rcmd[1], rcmd[2])
+			Hub.Publish(rcmd[1], rcmd[2])
 		}
 		return
 	case "publish":
@@ -113,7 +113,7 @@ func msgAccept(v Message) {
 			/*if len(topicChan) < cap(topicChan) {
 				topicChan <- rcmd
 			}*/
-			zsub.Publish(rcmd[1], rcmd[2])
+			Hub.Publish(rcmd[1], rcmd[2])
 		}
 		return
 	default:
@@ -137,13 +137,13 @@ func msgAccept(v Message) {
 				c.unsubscribe(topic)
 			}
 		case "broadcast":
-			zsub.broadcast(rcmd[1], rcmd[2])
+			Hub.broadcast(rcmd[1], rcmd[2])
 		case "delay":
-			zsub.delay(rcmd, c)
+			Hub.delay(rcmd, c)
 		case "timer":
 			for _, name := range rcmd[1:] {
-				zsub.timer([]string{"timer", name}, c) // append to timers
-				c.timers = append(c.timers, name)      // append to conns
+				Hub.timer([]string{"timer", name}, c) // append to timers
+				c.timers = append(c.timers, name)     // append to conns
 			}
 		case "cmd":
 			if len(rcmd) == 1 {
@@ -151,12 +151,12 @@ func msgAccept(v Message) {
 			}
 			switch rcmd[1] {
 			case "reload-timer":
-				zsub.ReloadTimer()
+				Hub.ReloadTimer()
 			case "shutdown":
 				if !strings.EqualFold(c.groupid, "group-admin") {
 					return
 				}
-				zsub.shutdown()
+				Hub.shutdown()
 			}
 		case "lock":
 			// lock key uuid 5
@@ -165,14 +165,14 @@ func msgAccept(v Message) {
 				return
 			}
 			d, _ := strconv.Atoi(rcmd[3])
-			zsub._lock(&Lock{key: rcmd[1], uuid: rcmd[2], duration: d})
+			Hub._lock(&Lock{key: rcmd[1], uuid: rcmd[2], duration: d})
 		case "unlock":
 			// unlock key uuid
 			if len(rcmd) != 3 {
 				c.send("-Error: unlock para number![" + strings.Join(rcmd, " ") + "]")
 				return
 			}
-			zsub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
+			Hub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
 		/*case "auth":
 		if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
 			c.send("-Error: invalid password!")
