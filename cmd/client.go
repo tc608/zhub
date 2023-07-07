@@ -40,7 +40,7 @@ type Client struct {
 
 type Lock struct {
 	Key      string   // lock Key
-	Uuid     string   // lock Uuid
+	Value    string   // lock Value
 	flagChan chan int //
 	// starttime uint32 // lock start time
 	// duration  int    // lock duration
@@ -90,10 +90,10 @@ func (c *Client) reconn() (err error) {
 			go c.receive()
 
 			// 重新订阅
-			for topic, _ := range c.subFun {
+			for topic := range c.subFun {
 				c.Subscribe(topic, nil)
 			}
-			for topic, _ := range c.timerFun {
+			for topic := range c.timerFun {
 				c.Timer(topic, nil)
 			}
 			break
@@ -129,7 +129,7 @@ func (c *Client) init() {
 	go c.receive()
 }
 
-// subscribe topic
+// Subscribe subscribe topic
 func (c *Client) Subscribe(topic string, fun func(v string)) {
 	c.send("subscribe " + topic)
 	if fun != nil {
@@ -179,7 +179,7 @@ func (c *Client) Timer(topic string, fun func()) {
 	c.send("timer", topic)
 }
 
-// send cmd
+// Cmd send cmd
 func (c *Client) Cmd(cmd ...string) {
 	if len(cmd) == 1 {
 		c.send("cmd", cmd[0])
@@ -197,31 +197,31 @@ func (c *Client) Close() {
 
 // Lock Key
 func (c *Client) Lock(key string, duration int) Lock {
-	uuid := uuid.New()
-	c.send("lock", key, uuid, strconv.Itoa(duration))
+	v := uuid.New()
+	c.send("v", key, v, strconv.Itoa(duration))
 
 	lockChan := make(chan int, 2)
 	go func() {
 		c.wlock.Lock()
 		defer c.wlock.Unlock()
-		c.lockFlag[uuid] = &Lock{
+		c.lockFlag[v] = &Lock{
 			Key:      key,
-			Uuid:     uuid,
+			Value:    v,
 			flagChan: lockChan,
 		}
 	}()
 
 	select {
 	case <-lockChan:
-		log.Println("lock-ok", time.Now().UnixNano()/1e6, uuid)
+		log.Println("v-ok", time.Now().UnixNano()/1e6, v)
 	}
 
-	return Lock{Key: key, Uuid: uuid}
+	return Lock{Key: key, Value: v}
 }
 
 func (c *Client) Unlock(l Lock) {
-	c.send("unlock", l.Key, l.Uuid)
-	delete(c.lockFlag, l.Uuid)
+	c.send("unlock", l.Key, l.Value)
+	delete(c.lockFlag, l.Value)
 }
 
 // -------------------------------------- rpc --------------------------------------
@@ -308,7 +308,7 @@ func (c Client) Rpc(topic string, message string, back func(res RpcResult)) {
 	back(rpc.RpcResult)
 }
 
-// rpc subscribe
+// RpcSubscribe rpc subscribe
 func (c Client) RpcSubscribe(topic string, fun func(Rpc Rpc) RpcResult) {
 	c.Subscribe(topic, func(v string) {
 		rpc := Rpc{}
@@ -368,27 +368,34 @@ func (c *Client) receive() {
 		if len(v) == 0 {
 			continue
 		}
-		switch string(v[0]) {
-		case "+":
+		switch v[0] {
+		case '+':
 			if string(v) == "+ping" {
 				c.send("+pong")
 			}
-		case "-":
+		case '-':
 			log.Println("error:", string(v))
-		case "*":
+		case '*':
+			if len(v) < 2 {
+				continue
+			}
 			n, err := strconv.Atoi(string(v[1:]))
-			if err != nil {
-				log.Println(err)
+			if err != nil || n <= 0 {
 				continue
 			}
 			var vs []string
 			for i := 0; i < n; i++ {
 				line, _, err := r.ReadLine()
-				if err != nil {
-					log.Println(err)
+				if err != nil || line == nil {
 					continue
 				}
-				clen, _ := strconv.Atoi(string(line[1:]))
+				if len(line) < 2 {
+					continue
+				}
+				clen, err := strconv.Atoi(string(line[1:]))
+				if err != nil || clen <= 0 {
+					continue
+				}
 				buf := make([]byte, clen)
 				_, err = io.ReadFull(r, buf)
 				if err != nil {
@@ -417,33 +424,13 @@ func (c *Client) receive() {
 	}
 }
 
-// -------------------------------------- k-v --------------------------------------
-/*
-*3
-$3
-set
-$n
-x
-$m
-xx
-*/
-func (c *Client) set(key string, value interface{}) error {
-
-	return nil
-}
-
-func (c *Client) get(key string) string {
-
-	return ""
-}
-
 // -------------------------------------- hm --------------------------------------
 
 // ==============================================================================
 
 var reconnect = 0
 
-// client 命令行程序
+// ClientRun client 命令行程序
 func ClientRun(addr string) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s", addr))
 

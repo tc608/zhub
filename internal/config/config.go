@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/spf13/viper"
 	"log"
 	"os"
@@ -34,11 +33,6 @@ type Config struct {
 	Auth map[string]string
 }
 
-func main() {
-	config := ReadConfig()
-
-	fmt.Printf("%+v", config)
-}
 func ReadConfig() Config {
 	conf := Config{}
 	viper.SetDefault("log.handlers", "console")
