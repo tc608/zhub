@@ -1,9 +1,9 @@
 module zhub
 
-go 1.18
+go 1.20
 
 require (
-	github.com/gin-gonic/gin v1.9.1
+	github.com/gin-gonic/gin v1.9.0
 	github.com/go-basic/uuid v1.0.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/robfig/cron v1.2.0
@@ -45,4 +45,11 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+replace (
+	zhub/cmd => ./zhub/cmd
+	zhub/internal/config => ./zhub/internal/config
+	zhub/internal/monitor => ./zhub/internal/monitor
+	zhub/internal/zsub => ./zhub/internal/zsub
 )
