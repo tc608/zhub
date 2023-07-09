@@ -125,7 +125,7 @@ func (s *ZSub) loadDelay() {
 		if exectime < time.Now().Unix() {
 			continue
 		}
-		s.delay([]string{"delay", split[0], split[1], strconv.FormatInt((exectime-time.Now().Unix())*1000, 10)}, nil)
+		s.Delay([]string{"delay", split[0], split[1], strconv.FormatInt((exectime-time.Now().Unix())*1000, 10)})
 	}
 }
 

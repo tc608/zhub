@@ -139,7 +139,7 @@ func handleMessage(v Message) {
 		case "broadcast":
 			Hub.broadcast(rcmd[1], rcmd[2])
 		case "delay":
-			Hub.delay(rcmd, c)
+			Hub.Delay(rcmd)
 		case "timer":
 			for _, name := range rcmd[1:] {
 				Hub.timer([]string{"timer", name}, c) // append to timers

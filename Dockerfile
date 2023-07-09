@@ -29,7 +29,8 @@ FROM alpine:latest
 WORKDIR /opt/zhub
 
 # 从构建阶段复制可执行文件到当前阶段
-COPY --from=builder /opt/zhub .
+COPY --from=builder /opt/zhub/zhub.sh .
+COPY --from=builder /opt/zhub/app.ini .
 
 # 复制 app.ini 配置文件到容器中
 COPY app.ini .

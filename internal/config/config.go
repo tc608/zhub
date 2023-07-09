@@ -38,6 +38,9 @@ func ReadConfig() Config {
 	viper.SetDefault("log.handlers", "console")
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("service.auth", true)
+	defer func() {
+		os.MkdirAll(conf.Data.Dir, os.ModeDir)
+	}()
 
 	/*// 读取指定的配置文件
 	if !strings.EqualFold("", fileName) {

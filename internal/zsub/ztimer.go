@@ -28,8 +28,8 @@ type ZDelay struct {
 	Timer    *time.Timer
 }
 
-// delay topic value 100 -> publish topic value
-func (s *ZSub) delay(rcmd []string, c *ZConn) {
+// Delay : delay topic value 100 -> publish topic value
+func (s *ZSub) Delay(rcmd []string) {
 	s.Lock()
 	defer func() {
 		s.Unlock()
@@ -37,13 +37,13 @@ func (s *ZSub) delay(rcmd []string, c *ZConn) {
 		s.delayup = true
 	}()
 	if len(rcmd) != 4 {
-		c.send("-Error: subscribe para number!")
+		// c.send("-Error: subscribe para number!")
 		return
 	}
 
 	t, err := strconv.ParseInt(rcmd[3], 10, 64)
 	if err != nil {
-		c.send("-Error: " + strings.Join(rcmd, " "))
+		// c.send("-Error: " + strings.Join(rcmd, " "))
 		return
 	}
 
