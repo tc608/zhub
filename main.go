@@ -30,12 +30,13 @@ func main() {
 	}
 
 	if rcmd != "" { // 如果指定了客户端命令
-		auth := ""                          // 认证信息
-		for key, value := range conf.Auth { // 遍历找到一个认证信息
-			auth = key + "@" + value
-			break
+		adminToken, err := zsub.AuthManager.AdminToken() // 认证信息
+		if err != nil {
+			log.Fatal(err) // Configuration error, stop the client from running.
+			return
 		}
-		cli, err := cmd.Create("zhub-local", addr, "group-admin", auth) // 创建客户端连接
+
+		cli, err := cmd.Create("server-local", addr, "server-admin", adminToken) // 创建客户端连接
 		if err != nil {
 			log.Println(err) // 如果连接失败则打印错误信息
 			return

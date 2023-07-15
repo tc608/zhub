@@ -1,0 +1,73 @@
+# 下面是一个示例的 YAML 数据格式，用于存储用户、用户组、Token、频道和授权信息：
+#
+#  users：存储用户信息，包括用户ID、用户名、密码和所属用户组。
+#  groups：存储用户组信息，包括用户组名称和描述。
+#  tokens：存储Token信息，包括Token ID、用户ID、Token值和可访问的频道。
+#  channels：存储频道信息，包括频道名称、描述和是否为公开频道。
+# -------------------------------------------------------------------
+
+#  下列示例中使用了上面的数据结构：
+
+# 用户信息
+users:
+  - id: 1
+    username: admin
+    password: Admin12345
+    status: active
+    groups:
+      - admin
+    # 正则 或 channel name
+    reads:
+      - wx:user-follow  #
+      - tuya:device-control  #
+      - topic-a  #
+    #writes:
+    #  - .*
+
+  - id: 2
+    username: user_dev
+    password: Lxy12345
+    groups:
+      - zcore
+
+# 角色组
+groups:
+  - name: admin
+    description: Group 1
+    reads:
+      - ^zcore:*  # "zcore:" 开头的订阅
+    writes:
+      - ^zcore:*  # "zcore:" 开头的发送
+
+  - name: zcore
+    description: Group 2
+
+# token信息
+tokens:
+  - id: 1
+    user_id: 1
+    token: token-12345
+    status: active
+    expiration: 2024-07-20 23:59:59
+  - id: 2
+    user_id: 2
+    token: token-12346
+    status: active
+    expiration: 2024-07-20 23:59:59
+
+# ---------------------------------------------
+
+# 公开频道设置
+channels:
+  - name: "-"
+    description: "无效占位符"
+    public: true
+
+  - name: "lock"
+    description: "分布式锁通知频道"
+    public: true
+
+  - name: "app_local"
+    description: "本地appname"
+    public: true
+# ---------------------------------------------

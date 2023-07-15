@@ -28,7 +28,8 @@ func StartWatch() {
 		zsub.Hub.Clearup()
 		c.JSON(http.StatusOK, "+OK")
 	})
-	r.GET("/retimer", func(c *gin.Context) {
+
+	r.GET("/timer/reload", func(c *gin.Context) {
 		zsub.Hub.ReloadTimer()
 		c.JSON(http.StatusOK, "+reload timer ok")
 	})
@@ -45,6 +46,12 @@ func StartWatch() {
 		delay := c.Query("delay")
 
 		zsub.Hub.Delay([]string{"delay", topic, value, delay})
+		c.JSON(http.StatusOK, "+OK")
+	})
+
+	// reload the auth configuration
+	r.GET("/auth/reload", func(c *gin.Context) {
+		zsub.AuthManager.Reload()
 		c.JSON(http.StatusOK, "+OK")
 	})
 

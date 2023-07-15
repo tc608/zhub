@@ -6,7 +6,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"zhub/internal/auth"
 )
+
+var AuthManager *auth.PermissionManager
+
+func init() {
+	AuthManager = &auth.PermissionManager{}
+	// Initialize the permission manager
+	err := AuthManager.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 var funChan = make(chan func(), 1000)
 
@@ -31,32 +43,14 @@ func handleMessage(v Message) {
 
 	if Conf.Log.Level == "debug" && rcmd[0] != "auth" {
 		log.Printf("[%d] cmd: %s\n", v.Conn.sn, strings.Join(rcmd, " "))
-	} else if rcmd[0] == "auth" {
-		if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
-			c.send("-Error: invalid password!")
-			return
-		}
-
-		inx := strings.IndexAny(rcmd[1], "@") //user@pwd
-
-		authKey := rcmd[1][:inx]              //user
-		authValue := Conf.Auth[rcmd[1][:inx]] //pwd
-		if strings.EqualFold(authValue, rcmd[1][inx+1:]) {
-			c.auth = rcmd[1][:inx]
-			c.send("+Auth: ok!")
-			log.Printf("[%d] cmd: %s\n", v.Conn.sn, "auth "+authKey+"@******* "+"[OK]")
-		} else {
-			c.send("-Auth: invalid password!")
-			log.Printf("[%d] cmd: %s\n", v.Conn.sn, "auth "+authKey+"@******* "+"[Error]")
-		}
-		return
 	}
 
-	if strings.TrimSpace(c.auth) == "" && rcmd[0] != "auth" && Conf.Service.Auth {
+	// 准入拦截，所有指令完成 auth 认证后才可进入
+	if c.user == 0 && Conf.Service.Auth && rcmd[0] != "auth" {
 		c.send("-Auth: NOAUTH Authentication required:" + rcmd[0])
 		return
 	}
-
+	// 指令预处理
 	if len(rcmd) == 1 {
 		switch strings.ToLower(rcmd[0]) {
 		default:
@@ -82,6 +76,31 @@ func handleMessage(v Message) {
 
 	cmd := rcmd[0]
 	switch cmd {
+	case "auth":
+		userid, err := AuthManager.GetUserIdByToken(rcmd[1])
+		if err != nil {
+			c.send("-Error: " + err.Error())
+			return
+		}
+
+		c.user = userid
+		c.send("+Auth: ok!")
+
+		// hide the auth token content
+		str := func() string {
+			str := rcmd[1]
+			length := len(str)
+			if length > 4 {
+				return str[:2] + strings.Repeat("*", length-4) + str[length-2:]
+			} else if length > 2 {
+				return str[:1] + strings.Repeat("*", length-2) + str[length-1:]
+			} else {
+				return strings.Repeat("*", length)
+			}
+		}()
+
+		log.Printf("[%d] cmd: %s, auth [OK]\n", v.Conn.sn, str)
+		return
 	case "groupid":
 		c.groupid = rcmd[1]
 		return
@@ -113,9 +132,19 @@ func handleMessage(v Message) {
 			/*if len(topicChan) < cap(topicChan) {
 				topicChan <- rcmd
 			}*/
+
+			// auth check
+			if !AuthManager.AuthCheck(c.user, rcmd[1], "w") {
+				c.send("-Error: Insufficient permissions to send topic [" + rcmd[1] + "] message.")
+				return
+			}
 			Hub.Publish(rcmd[1], rcmd[2])
 		}
 		return
+	case "broadcast":
+		Hub.broadcast(rcmd[1], rcmd[2])
+	case "delay":
+		Hub.Delay(rcmd)
 	default:
 	}
 
@@ -130,16 +159,17 @@ func handleMessage(v Message) {
 		case "subscribe":
 			// subscribe x y z
 			for _, topic := range rcmd[1:] {
-				c.subscribe(topic) // todo: 批量一次订阅
+				// auth check
+				if !AuthManager.AuthCheck(c.user, rcmd[1], "r") {
+					c.send("-Error: Insufficient permissions to accept topic [" + topic + "] message.")
+					continue
+				}
+				c.subscribe(topic)
 			}
 		case "unsubscribe":
 			for _, topic := range rcmd[1:] {
 				c.unsubscribe(topic)
 			}
-		case "broadcast":
-			Hub.broadcast(rcmd[1], rcmd[2])
-		case "delay":
-			Hub.Delay(rcmd)
 		case "timer":
 			for _, name := range rcmd[1:] {
 				Hub.timer([]string{"timer", name}, c) // append to timers
@@ -153,7 +183,7 @@ func handleMessage(v Message) {
 			case "reload-timer":
 				Hub.ReloadTimer()
 			case "shutdown":
-				if !strings.EqualFold(c.groupid, "group-admin") {
+				if AuthManager.IsAdmin(c.user) {
 					return
 				}
 				Hub.shutdown()
@@ -173,22 +203,6 @@ func handleMessage(v Message) {
 				return
 			}
 			Hub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
-		/*case "auth":
-		if len(rcmd) != 2 || strings.IndexAny(rcmd[1], "@") == -1 {
-			c.send("-Error: invalid password!")
-			return
-		}
-
-		inx := strings.IndexAny(rcmd[1], "@") //user@pwd
-
-		authKey := Conf.Auth[rcmd[1][:inx]]
-		if strings.EqualFold(authKey, rcmd[1][inx+1:]) {
-			c.auth = rcmd[1][:inx]
-			c.send("+Auth: ok!")
-		} else {
-			c.send("-Auth: invalid password!")
-		}
-		return*/
 		default:
 			c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 			return
