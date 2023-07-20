@@ -75,6 +75,18 @@ func handleMessage(v Message) {
 	}
 
 	cmd := rcmd[0]
+
+	// auth check
+	switch cmd {
+	case "publish", "broadcast", "delay", "rpc":
+		if !AuthManager.AuthCheck(c.user, rcmd[1], "w") {
+			c.send("-Error: Insufficient permissions to send " + cmd + " [" + rcmd[1] + "] message.")
+			return
+		}
+	case "subscribe": // 在订阅逻辑处检查
+	default: // 其他指令将放行,包括：unsubscribe、lock、unlock、timer
+	}
+
 	switch cmd {
 	case "auth":
 		userid, err := AuthManager.GetUserIdByToken(rcmd[1])
@@ -132,12 +144,6 @@ func handleMessage(v Message) {
 			/*if len(topicChan) < cap(topicChan) {
 				topicChan <- rcmd
 			}*/
-
-			// auth check
-			if !AuthManager.AuthCheck(c.user, rcmd[1], "w") {
-				c.send("-Error: Insufficient permissions to send topic [" + rcmd[1] + "] message.")
-				return
-			}
 			Hub.Publish(rcmd[1], rcmd[2])
 		}
 		return
@@ -161,7 +167,7 @@ func handleMessage(v Message) {
 			for _, topic := range rcmd[1:] {
 				// auth check
 				if !AuthManager.AuthCheck(c.user, rcmd[1], "r") {
-					c.send("-Error: Insufficient permissions to accept topic [" + topic + "] message.")
+					c.send("-Error: Insufficient permissions to " + cmd + " [" + rcmd[1] + "] message.")
 					continue
 				}
 				c.subscribe(topic)
