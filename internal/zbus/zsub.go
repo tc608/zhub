@@ -1,4 +1,4 @@
-package zsub
+package zbus
 
 import (
 	"bufio"
@@ -17,7 +17,7 @@ import (
 
 var (
 	Conf config.Config
-	Hub  = &ZSub{
+	Bus  = &ZBus{
 		topics: make(map[string]*ZTopic),
 		timers: make(map[string]*ZTimer),
 		delays: make(map[string]*ZDelay),
@@ -41,7 +41,7 @@ func init() {
 					}
 				}()
 				conns := make([]*ZConn, 0) // 需要关闭的连接
-				for _, c := range Hub.conns {
+				for _, c := range Bus.conns {
 					if c.ping > 0 && c.ping-c.pong > 19 {
 						conns = c.appendTo(conns)
 						continue
@@ -63,12 +63,12 @@ func init() {
 
 			}
 
-			Hub.SaveData()
+			Bus.SaveData()
 		}
 	}()
 }
 
-type ZSub struct {
+type ZBus struct {
 	sync.RWMutex
 	topics  map[string]*ZTopic
 	timers  map[string]*ZTimer
@@ -119,9 +119,9 @@ func NewZConn(conn *net.Conn) *ZConn {
 3、若有待消费消息启动消费
 */
 func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
-	Hub.Lock()
-	defer Hub.Unlock()
-	ztopic := Hub.topics[topic] //ZTopic
+	Bus.Lock()
+	defer Bus.Unlock()
+	ztopic := Bus.topics[topic] //ZTopic
 	if ztopic == nil {
 		ztopic = &ZTopic{
 			groups: map[string]*ZGroup{},
@@ -129,7 +129,7 @@ func (c *ZConn) subscribe(topic string) { // 新增订阅 zconn{}
 			chMsg:  make(chan string, 500),
 		}
 		ztopic.init()
-		Hub.topics[topic] = ztopic
+		Bus.topics[topic] = ztopic
 	}
 
 	zgroup := ztopic.groups[c.groupid] //ZGroup
@@ -159,7 +159,7 @@ func (c *ZConn) unsubscribe(topic string) { // 取消订阅 zconn{}
 	c.Lock()
 	defer c.Unlock()
 	close(c.substoped[topic])
-	ztopic := Hub.topics[topic] //ZTopic
+	ztopic := Bus.topics[topic] //ZTopic
 	if ztopic == nil {
 		return
 	}
@@ -205,10 +205,10 @@ func (c *ZConn) close() {
 	}
 
 	// timer conn close
-	Hub.Lock()
-	defer Hub.Unlock()
+	Bus.Lock()
+	defer Bus.Unlock()
 	for _, topic := range c.timers { // fixme: 数据逻辑交叉循环
-		timer := Hub.timers[topic]
+		timer := Bus.timers[topic]
 		if timer == nil {
 			continue
 		}
@@ -267,8 +267,8 @@ func StartServer(addr string, conf config.Config) {
 	}()
 
 	// 重新加载[定时、延时]
-	go Hub.ReloadTimer()
-	go Hub.LoadData()
+	go Bus.ReloadTimer()
+	go Bus.LoadData()
 
 	// 启动服务监听
 	listen, err := net.Listen("tcp", addr)
@@ -286,12 +286,12 @@ func StartServer(addr string, conf config.Config) {
 		zConn := NewZConn(&conn)
 
 		log.Printf("conn start: %s [%d]\n", conn.RemoteAddr(), zConn.sn)
-		go Hub.handlerConn(zConn)
+		go Bus.handlerConn(zConn)
 	}
 }
 
 // 连接处理
-func (s *ZSub) handlerConn(c *ZConn) {
+func (s *ZBus) handlerConn(c *ZConn) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("handlerConn Recovered:", r)
@@ -301,7 +301,7 @@ func (s *ZSub) handlerConn(c *ZConn) {
 	defer func() {
 		// conn remove to conns
 		funChan <- func() {
-			Hub.conns = c.removeTo(Hub.conns)
+			Bus.conns = c.removeTo(Bus.conns)
 		}
 
 		// close ZConn
@@ -310,7 +310,7 @@ func (s *ZSub) handlerConn(c *ZConn) {
 
 	// conn add to conns
 	funChan <- func() {
-		Hub.conns = c.appendTo(Hub.conns)
+		Bus.conns = c.appendTo(Bus.conns)
 	}
 
 	reader := bufio.NewReader(*c.conn)
@@ -365,7 +365,7 @@ Publish topic message
 1、send message to topic's chan
 2、feedback send success to sender, and sending message to topic's subscripts
 */
-func (s *ZSub) Publish(topic, msg string) {
+func (s *ZBus) Publish(topic, msg string) {
 	s.RLock()
 	defer s.RUnlock()
 	ztopic := s.topics[topic] //ZTopic
@@ -386,7 +386,7 @@ func (s *ZSub) Publish(topic, msg string) {
 /*
 send broadcast message
 */
-func (s *ZSub) broadcast(topic, msg string) {
+func (s *ZBus) broadcast(topic, msg string) {
 	s.RLock()
 	defer s.RUnlock()
 	if strings.EqualFold(topic, "lock") {
@@ -409,7 +409,7 @@ func (s *ZSub) broadcast(topic, msg string) {
 lock: 	lock   key uuid t
 unlock: unlock key uuid
 */
-func (s *ZSub) _lock(lock *Lock) {
+func (s *ZBus) _lock(lock *Lock) {
 	locks := s.locks[lock.key]
 	if locks == nil {
 		locks = make([]*Lock, 0)
@@ -432,7 +432,7 @@ func (s *ZSub) _lock(lock *Lock) {
 		s.locks[lock.key] = append(locks, lock)
 	}
 }
-func (s *ZSub) _unlock(l Lock) {
+func (s *ZBus) _unlock(l Lock) {
 	locks := s.locks[l.key]
 	if locks == nil || len(locks) == 0 {
 		return
@@ -455,7 +455,7 @@ func (s *ZSub) _unlock(l Lock) {
 	}
 }
 
-func (s *ZSub) shutdown() {
+func (s *ZBus) shutdown() {
 	s.SaveData()
 	os.Exit(0)
 }
@@ -463,7 +463,7 @@ func (s *ZSub) shutdown() {
 func Info() map[string]interface{} {
 	// topics
 	topics := map[string]interface{}{}
-	for s, topic := range Hub.topics {
+	for s, topic := range Bus.topics {
 		// {groups:[{name:xxx,size:xx}]}
 		arr := make([]map[string]interface{}, 0)
 
@@ -480,7 +480,7 @@ func Info() map[string]interface{} {
 
 	// conns
 	conns := make([]interface{}, 0)
-	for _, c := range Hub.conns {
+	for _, c := range Bus.conns {
 		m := make(map[string]interface{}, 0)
 		m["remoteaddr"] = (*c.conn).RemoteAddr()
 		m["groupid"] = c.groupid
@@ -493,14 +493,14 @@ func Info() map[string]interface{} {
 	info := map[string]interface{}{
 		"topics":    topics,
 		"topicsize": len(topics),
-		"timersize": len(Hub.timers),
+		"timersize": len(Bus.timers),
 		"conns":     conns,
-		"connsize":  len(Hub.conns),
+		"connsize":  len(Bus.conns),
 	}
 	return info
 }
 
-func (s *ZSub) Clearup() {
+func (s *ZBus) Clearup() {
 	for tn, topic := range s.topics {
 		for _, group := range topic.groups {
 			if len(group.conns) > 0 || topic.mcount > group.offset {
@@ -513,7 +513,7 @@ func (s *ZSub) Clearup() {
 	}
 }
 
-func (s *ZSub) noSubscribe(topic string) bool {
+func (s *ZBus) noSubscribe(topic string) bool {
 	zTopic := s.topics[topic]
 	if zTopic == nil || len(zTopic.groups) == 0 {
 		return true

@@ -6,7 +6,7 @@ import (
 	"zhub/cmd"
 	"zhub/internal/config"
 	"zhub/internal/monitor"
-	"zhub/internal/zsub"
+	"zhub/internal/zbus"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	}
 
 	if rcmd != "" { // 如果指定了客户端命令
-		adminToken, err := zsub.AuthManager.AdminToken() // 认证信息
+		adminToken, err := zbus.AuthManager.AdminToken() // 认证信息
 		if err != nil {
 			log.Fatal(err) // Configuration error, stop the client from running.
 			return
@@ -54,6 +54,6 @@ func main() {
 		cmd.ClientRun(addr) // 客户端运行
 	} else {
 		go monitor.StartWatch()      // 启动监控协程
-		zsub.StartServer(addr, conf) // 启动服务进程
+		zbus.StartServer(addr, conf) // 启动服务进程
 	}
 }

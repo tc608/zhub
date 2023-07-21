@@ -1,4 +1,4 @@
-package zsub
+package zbus
 
 import (
 	"bufio"
@@ -34,7 +34,7 @@ func Append(str string, fileName string) {
 	}
 }
 
-func (s *ZSub) SaveData() {
+func (s *ZBus) SaveData() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("SaveData Recovered:", r)
@@ -89,12 +89,12 @@ func (s *ZSub) SaveData() {
 	}()
 }
 
-func (s *ZSub) LoadData() {
+func (s *ZBus) LoadData() {
 	s.loadDelay()
 	// s.loadLock()
 }
 
-func (s *ZSub) loadDelay() {
+func (s *ZBus) loadDelay() {
 	f, err := os.Open(datadir + "/delay.z")
 	if err != nil {
 		return
@@ -129,7 +129,7 @@ func (s *ZSub) loadDelay() {
 	}
 }
 
-func (s *ZSub) loadLock() {
+func (s *ZBus) loadLock() {
 	f, err := os.Open(datadir + "/lock.z")
 	if err != nil {
 		return

@@ -1,4 +1,4 @@
-package zsub
+package zbus
 
 import (
 	"database/sql"
@@ -29,7 +29,7 @@ type ZDelay struct {
 }
 
 // Delay : delay topic value 100 -> publish topic value
-func (s *ZSub) Delay(rcmd []string) {
+func (s *ZBus) Delay(rcmd []string) {
 	s.Lock()
 	defer func() {
 		s.Unlock()
@@ -70,7 +70,7 @@ func (s *ZSub) Delay(rcmd []string) {
 			select {
 			case <-delay.Timer.C:
 				log.Println("delay send:", rcmd[1], rcmd[2])
-				Hub.Publish(rcmd[1], rcmd[2])
+				Bus.Publish(rcmd[1], rcmd[2])
 				funChan <- func() {
 					delete(s.delays, rcmd[1]+"-"+rcmd[2])
 				}
@@ -82,7 +82,7 @@ func (s *ZSub) Delay(rcmd []string) {
 /*
 ["Timer", Topic, expr, 0|1]
 */
-func (s *ZSub) timer(rcmd []string, c *ZConn) {
+func (s *ZBus) timer(rcmd []string, c *ZConn) {
 	s.Lock()
 	defer s.Unlock()
 	timer := s.timers[rcmd[1]]
@@ -155,7 +155,7 @@ func (s *ZSub) timer(rcmd []string, c *ZConn) {
 	}
 }
 
-func (s *ZSub) ReloadTimer() {
+func (s *ZBus) ReloadTimer() {
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
 		Conf.Ztimer.Db.User,
 		Conf.Ztimer.Db.Password,

@@ -3,7 +3,7 @@ package monitor
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"zhub/internal/zsub"
+	"zhub/internal/zbus"
 )
 
 func init() {
@@ -22,22 +22,22 @@ func StartWatch() {
 	})
 
 	r.GET("/info", func(c *gin.Context) {
-		c.JSON(http.StatusOK, zsub.Info())
+		c.JSON(http.StatusOK, zbus.Info())
 	})
 	r.GET("/cleanup", func(c *gin.Context) {
-		zsub.Hub.Clearup()
+		zbus.Bus.Clearup()
 		c.JSON(http.StatusOK, "+OK")
 	})
 
 	r.GET("/timer/reload", func(c *gin.Context) {
-		zsub.Hub.ReloadTimer()
+		zbus.Bus.ReloadTimer()
 		c.JSON(http.StatusOK, "+reload timer ok")
 	})
 	r.GET("/topic/publish", func(c *gin.Context) {
 		topic := c.Query("topic")
 		value := c.Query("value")
 
-		zsub.Hub.Publish(topic, value)
+		zbus.Bus.Publish(topic, value)
 		c.JSON(http.StatusOK, "+OK")
 	})
 	r.GET("/topic/delay", func(c *gin.Context) {
@@ -45,16 +45,16 @@ func StartWatch() {
 		value := c.Query("value")
 		delay := c.Query("delay")
 
-		zsub.Hub.Delay([]string{"delay", topic, value, delay})
+		zbus.Bus.Delay([]string{"delay", topic, value, delay})
 		c.JSON(http.StatusOK, "+OK")
 	})
 
 	// reload the auth configuration
 	r.GET("/auth/reload", func(c *gin.Context) {
-		zsub.AuthManager.Reload()
+		zbus.AuthManager.Reload()
 		c.JSON(http.StatusOK, "+OK")
 	})
 
-	watchAddr := zsub.Conf.Service.Watch
+	watchAddr := zbus.Conf.Service.Watch
 	r.Run(watchAddr)
 }

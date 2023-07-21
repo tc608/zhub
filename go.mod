@@ -51,5 +51,5 @@ replace (
 	zhub/cmd => ./zhub/cmd
 	zhub/internal/config => ./zhub/internal/config
 	zhub/internal/monitor => ./zhub/internal/monitor
-	zhub/internal/zsub => ./zhub/internal/zsub
+	zhub/internal/zbus => ./zhub/internal/zbus
 )

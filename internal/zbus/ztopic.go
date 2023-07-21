@@ -1,4 +1,4 @@
-package zsub
+package zbus
 
 import (
 	"fmt"

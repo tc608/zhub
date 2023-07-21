@@ -1,4 +1,4 @@
-package zsub
+package zbus
 
 import (
 	"encoding/json"
@@ -118,13 +118,13 @@ func handleMessage(v Message) {
 		return
 	case "rpc":
 		// if rpc and  no sub back error
-		if Hub.noSubscribe(rcmd[1]) {
+		if Bus.noSubscribe(rcmd[1]) {
 			rpcBody := make(map[string]string)
 			json.Unmarshal([]byte(rcmd[2]), &rpcBody)
 			log.Println("rpc no subscribe: ", rcmd[1])
 
 			ruk := rpcBody["ruk"]
-			Hub.Publish(strings.Split(ruk, "::")[0], "{'retcode': 404, 'retinfo': '服务离线！', 'ruk': '"+ruk+"'}")
+			Bus.Publish(strings.Split(ruk, "::")[0], "{'retcode': 404, 'retinfo': '服务离线！', 'ruk': '"+ruk+"'}")
 			return
 		}
 
@@ -134,7 +134,7 @@ func handleMessage(v Message) {
 			/*if len(topicChan) < cap(topicChan) {
 				topicChan <- rcmd
 			}*/
-			Hub.Publish(rcmd[1], rcmd[2])
+			Bus.Publish(rcmd[1], rcmd[2])
 		}
 		return
 	case "publish":
@@ -144,13 +144,13 @@ func handleMessage(v Message) {
 			/*if len(topicChan) < cap(topicChan) {
 				topicChan <- rcmd
 			}*/
-			Hub.Publish(rcmd[1], rcmd[2])
+			Bus.Publish(rcmd[1], rcmd[2])
 		}
 		return
 	case "broadcast":
-		Hub.broadcast(rcmd[1], rcmd[2])
+		Bus.broadcast(rcmd[1], rcmd[2])
 	case "delay":
-		Hub.Delay(rcmd)
+		Bus.Delay(rcmd)
 	default:
 	}
 
@@ -178,7 +178,7 @@ func handleMessage(v Message) {
 			}
 		case "timer":
 			for _, name := range rcmd[1:] {
-				Hub.timer([]string{"timer", name}, c) // append to timers
+				Bus.timer([]string{"timer", name}, c) // append to timers
 				c.timers = append(c.timers, name)     // append to conns
 			}
 		case "cmd":
@@ -187,12 +187,12 @@ func handleMessage(v Message) {
 			}
 			switch rcmd[1] {
 			case "reload-timer":
-				Hub.ReloadTimer()
+				Bus.ReloadTimer()
 			case "shutdown":
 				if AuthManager.IsAdmin(c.user) {
 					return
 				}
-				Hub.shutdown()
+				Bus.shutdown()
 			}
 		case "lock":
 			// lock key uuid 5
@@ -201,14 +201,14 @@ func handleMessage(v Message) {
 				return
 			}
 			d, _ := strconv.Atoi(rcmd[3])
-			Hub._lock(&Lock{key: rcmd[1], uuid: rcmd[2], duration: d})
+			Bus._lock(&Lock{key: rcmd[1], uuid: rcmd[2], duration: d})
 		case "unlock":
 			// unlock key uuid
 			if len(rcmd) != 3 {
 				c.send("-Error: unlock para number![" + strings.Join(rcmd, " ") + "]")
 				return
 			}
-			Hub._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
+			Bus._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
 		default:
 			c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 			return
