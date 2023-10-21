@@ -6,6 +6,8 @@ import (
 	"zhub/internal/zbus"
 )
 
+var r = gin.Default()
+
 func init() {
 	// 1.日志文件 定期分割归档
 
@@ -13,18 +15,14 @@ func init() {
 
 func StartWatch() {
 
-	r := gin.Default()
-
-	r.Group("/users")
-
 	r.GET("/", func(c *gin.Context) {
 		c.File("./public/index.html")
 	})
 
-	r.GET("/info", func(c *gin.Context) {
+	r.GET("/_/info", func(c *gin.Context) {
 		c.JSON(http.StatusOK, zbus.Info())
 	})
-	r.GET("/cleanup", func(c *gin.Context) {
+	r.GET("/_/cleanup", func(c *gin.Context) {
 		zbus.Bus.Clearup()
 		c.JSON(http.StatusOK, "+OK")
 	})

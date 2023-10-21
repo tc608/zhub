@@ -23,8 +23,9 @@ var (
 		delays: make(map[string]*ZDelay),
 		locks:  make(map[string][]*Lock),
 		conns:  make([]*ZConn, 0),
+		sn:     1000,
 	}
-	SN int32 = 1000
+	//SN int32 = 1000
 )
 
 func init() {
@@ -70,12 +71,13 @@ func init() {
 
 type ZBus struct {
 	sync.RWMutex
-	topics  map[string]*ZTopic
-	timers  map[string]*ZTimer
-	delays  map[string]*ZDelay
-	locks   map[string][]*Lock
-	conns   []*ZConn
-	delayup bool
+	topics  map[string]*ZTopic // 订阅主题
+	timers  map[string]*ZTimer // 定时事件
+	delays  map[string]*ZDelay // 延时消息
+	locks   map[string][]*Lock // 当前锁对象
+	conns   []*ZConn           // 所有的客户端连接
+	sn      int32              // 客户端连接编号
+	delayup bool               // 是否需要延时持久保存数据
 }
 
 type ZConn struct { //ZConn
@@ -103,7 +105,7 @@ type Lock struct {
 
 func NewZConn(conn *net.Conn) *ZConn {
 	return &ZConn{
-		sn:        atomic.AddInt32(&SN, 1), // 连接编号
+		sn:        atomic.AddInt32(&Bus.sn, 1),
 		conn:      conn,
 		topics:    []string{},
 		timers:    []string{},
@@ -356,7 +358,7 @@ func (s *ZBus) handlerConn(c *ZConn) {
 			continue
 		}
 
-		handleMessage(Message{Conn: c, Rcmd: rcmd})
+		messageHandler(Message{Conn: c, Rcmd: rcmd})
 	}
 }
 
@@ -406,8 +408,9 @@ func (s *ZBus) broadcast(topic, msg string) {
 }
 
 /*
-lock: 	lock   key uuid t
-unlock: unlock key uuid
+lock: 		lock   key uuid t
+tryLock: 	trylock   key uuid t
+unlock: 	unlock key uuid
 */
 func (s *ZBus) _lock(lock *Lock) {
 	locks := s.locks[lock.key]

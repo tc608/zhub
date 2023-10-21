@@ -22,10 +22,10 @@ func init() {
 
 var funChan = make(chan func(), 1000)
 
-func handleMessage(v Message) {
+func messageHandler(v Message) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("handleMessage Recovered:", r)
+			log.Println("messageHandler Recovered:", r)
 		}
 	}()
 	c := v.Conn
@@ -47,7 +47,7 @@ func handleMessage(v Message) {
 
 	// 准入拦截，所有指令完成 auth 认证后才可进入
 	if c.user == 0 && Conf.Service.Auth && rcmd[0] != "auth" {
-		c.send("-Auth: NOAUTH Authentication required:" + rcmd[0])
+		c.send("-Auth: Authentication required [" + rcmd[0] + "]")
 		return
 	}
 	// 指令预处理
@@ -81,6 +81,14 @@ func handleMessage(v Message) {
 	case "publish", "broadcast", "delay", "rpc":
 		if !AuthManager.AuthCheck(c.user, rcmd[1], "w") {
 			c.send("-Error: Insufficient permissions to send " + cmd + " [" + rcmd[1] + "] message.")
+			log.Printf("[%d] -Auth: %s [%s]\n", c.sn, cmd, rcmd[1])
+			if cmd == "rpc" {
+				rpcBody := make(map[string]string)
+				json.Unmarshal([]byte(rcmd[2]), &rpcBody)
+
+				ruk := rpcBody["ruk"]
+				Bus.Publish(strings.Split(ruk, "::")[0], "{'retcode': 401, 'retinfo': 'unauthorized！', 'ruk': '"+ruk+"'}")
+			}
 			return
 		}
 	case "subscribe": // 在订阅逻辑处检查
@@ -121,7 +129,7 @@ func handleMessage(v Message) {
 		if Bus.noSubscribe(rcmd[1]) {
 			rpcBody := make(map[string]string)
 			json.Unmarshal([]byte(rcmd[2]), &rpcBody)
-			log.Println("rpc no subscribe: ", rcmd[1])
+			log.Printf("[%d] : rpc %s no subscribe", c.sn, rcmd[1])
 
 			ruk := rpcBody["ruk"]
 			Bus.Publish(strings.Split(ruk, "::")[0], "{'retcode': 404, 'retinfo': '服务离线！', 'ruk': '"+ruk+"'}")
@@ -168,6 +176,7 @@ func handleMessage(v Message) {
 				// auth check
 				if !AuthManager.AuthCheck(c.user, rcmd[1], "r") {
 					c.send("-Error: Insufficient permissions to " + cmd + " [" + rcmd[1] + "] message.")
+					log.Printf("-Auth: %s [%s]\n", cmd, rcmd[1])
 					continue
 				}
 				c.subscribe(topic)
