@@ -153,7 +153,7 @@ func (c *Client) ping() {
 	c.send("ping")
 }
 
-//Publish -------------------------------------- pub-sub --------------------------------------
+// Publish -------------------------------------- pub-sub --------------------------------------
 func (c *Client) Publish(topic string, message string) error {
 	return c.send("publish", topic, message)
 }
@@ -168,10 +168,12 @@ func (c *Client) Delay(topic string, message string, delay int) error {
 
 /*
 Timer
-func (c *Client) Timer(topic string, expr string, fun func()) {
-	c.timerFun[topic] = fun
-	c.send("timer", topic, expr, "x")
-}*/
+
+	func (c *Client) Timer(topic string, expr string, fun func()) {
+		c.timerFun[topic] = fun
+		c.send("timer", topic, expr, "x")
+	}
+*/
 func (c *Client) Timer(topic string, fun func()) {
 	if fun != nil {
 		c.timerFun[topic] = fun
@@ -195,28 +197,37 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
+// TryLock
+func TryLock(key string, duration int) {
+	/*uuid := uuid.New()
+
+	TODO
+
+	return Lock{Key: key, Value: uuid}*/
+}
+
 // Lock Key
 func (c *Client) Lock(key string, duration int) Lock {
-	v := uuid.New()
-	c.send("v", key, v, strconv.Itoa(duration))
+	uuid := uuid.New()
+	c.send("uuid", key, uuid, strconv.Itoa(duration))
 
 	lockChan := make(chan int, 2)
 	go func() {
 		c.wlock.Lock()
 		defer c.wlock.Unlock()
-		c.lockFlag[v] = &Lock{
+		c.lockFlag[uuid] = &Lock{
 			Key:      key,
-			Value:    v,
+			Value:    uuid,
 			flagChan: lockChan,
 		}
 	}()
 
 	select {
 	case <-lockChan:
-		log.Println("v-ok", time.Now().UnixNano()/1e6, v)
+		log.Println("lock-ok", time.Now().UnixNano()/1e6, uuid)
 	}
 
-	return Lock{Key: key, Value: v}
+	return Lock{Key: key, Value: uuid}
 }
 
 func (c *Client) Unlock(l Lock) {

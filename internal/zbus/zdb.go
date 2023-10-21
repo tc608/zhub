@@ -161,6 +161,7 @@ func (s *ZBus) loadLock() {
 		}
 
 		s._lock(&Lock{
+			cmd:      "lock",
 			key:      split[0],
 			uuid:     split[1],
 			duration: duration,

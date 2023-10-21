@@ -203,21 +203,21 @@ func messageHandler(v Message) {
 				}
 				Bus.shutdown()
 			}
-		case "lock":
+		case "lock", "trylock":
 			// lock key uuid 5
 			if len(rcmd) != 4 {
 				c.send("-Error: lock para number![" + strings.Join(rcmd, " ") + "]")
 				return
 			}
 			d, _ := strconv.Atoi(rcmd[3])
-			Bus._lock(&Lock{key: rcmd[1], uuid: rcmd[2], duration: d})
+			Bus._lock(&Lock{cmd: cmd, key: rcmd[1], uuid: rcmd[2], duration: d})
 		case "unlock":
 			// unlock key uuid
 			if len(rcmd) != 3 {
 				c.send("-Error: unlock para number![" + strings.Join(rcmd, " ") + "]")
 				return
 			}
-			Bus._unlock(Lock{key: rcmd[1], uuid: rcmd[2]})
+			Bus._unlock(Lock{cmd: cmd, key: rcmd[1], uuid: rcmd[2]})
 		default:
 			c.send("-Error: default not supported:[" + strings.Join(rcmd, " ") + "]")
 			return

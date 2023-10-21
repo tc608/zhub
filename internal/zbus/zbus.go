@@ -95,9 +95,10 @@ type ZConn struct { //ZConn
 }
 
 type Lock struct {
-	key      string
-	uuid     string
-	duration int
+	cmd      string // lock|trylock|unlock
+	key      string // lock key
+	uuid     string // apply for unique identification
+	duration int    // lock duration (seconds)
 	timer    *time.Timer
 	start    int64
 	//stop     time.Time
@@ -432,7 +433,12 @@ func (s *ZBus) _lock(lock *Lock) {
 			}
 		}()
 	} else {
-		s.locks[lock.key] = append(locks, lock)
+		switch lock.cmd {
+		case "trylock": // send trylock fail message
+			s.broadcast("trylock", lock.uuid)
+		case "lock":
+			s.locks[lock.key] = append(locks, lock)
+		}
 	}
 }
 func (s *ZBus) _unlock(l Lock) {
