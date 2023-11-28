@@ -79,7 +79,7 @@ func messageHandler(v Message) {
 	// auth check
 	switch cmd {
 	case "publish", "broadcast", "delay", "rpc":
-		if !AuthManager.AuthCheck(c.user, rcmd[1], "w") {
+		if Conf.Service.Auth && !AuthManager.AuthCheck(c.user, rcmd[1], "w") {
 			c.send("-Error: Insufficient permissions to send " + cmd + " [" + rcmd[1] + "] message.")
 			log.Printf("[%d] -Auth: %s [%s]\n", c.sn, cmd, rcmd[1])
 			if cmd == "rpc" {
@@ -174,7 +174,7 @@ func messageHandler(v Message) {
 			// subscribe x y z
 			for _, topic := range rcmd[1:] {
 				// auth check
-				if !AuthManager.AuthCheck(c.user, rcmd[1], "r") {
+				if Conf.Service.Auth && !AuthManager.AuthCheck(c.user, rcmd[1], "r") {
 					c.send("-Error: Insufficient permissions to " + cmd + " [" + rcmd[1] + "] message.")
 					log.Printf("-Auth: %s [%s]\n", cmd, rcmd[1])
 					continue

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"zhub/internal/config"
 )
 
 type User struct {
@@ -63,6 +64,12 @@ type PermissionManager struct {
 func (p *PermissionManager) Init() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
+
+	Conf := config.ReadConfig()
+	if !Conf.Service.Auth {
+		return nil
+	}
+
 	// Load YAML configuration from file
 	data, err := os.ReadFile("./auth.yml")
 	if err != nil {

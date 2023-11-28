@@ -36,8 +36,10 @@ groups:
     description: Group 1
     reads:
       - ^zcore:*  # "zcore:" 开头的订阅
+      - rpc-t
     writes:
       - ^zcore:*  # "zcore:" 开头的发送
+      - rpc-t
 
   - name: zcore
     description: Group 2
@@ -59,15 +61,16 @@ tokens:
 
 # 公开频道设置
 channels:
-  - name: "-"
-    description: "无效占位符"
-    public: true
-
   - name: "lock"
     description: "分布式锁通知频道"
     public: true
-
+  - name: "trylock"
+    description: "分布式锁通知频道"
+    public: true
   - name: "app_local"
+    description: "本地appname"
+    public: true
+  - name: "DEV-LOCAL"
     description: "本地appname"
     public: true
 # ---------------------------------------------

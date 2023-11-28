@@ -156,6 +156,12 @@ func (s *ZBus) timer(rcmd []string, c *ZConn) {
 }
 
 func (s *ZBus) ReloadTimer() {
+	// 未配置  ztimer 数据库返回
+	if Conf.Ztimer.Db.Addr == "" {
+		log.Println("No found ztimer config in app.ini")
+		return
+	}
+
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
 		Conf.Ztimer.Db.User,
 		Conf.Ztimer.Db.Password,
