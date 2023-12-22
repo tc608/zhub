@@ -108,8 +108,8 @@ func (s *ZBus) timer(rcmd []string, c *ZConn) {
 
 		var timerFun = func() {
 			for _, conn := range timer.Conns {
-				log.Println("Timer send:", timer.Topic)
-				err := conn.send("Timer", timer.Topic)
+				log.Println("timer send:", timer.Topic)
+				err := conn.send("timer", timer.Topic)
 				if timer.Single && err == nil {
 					break
 				}
@@ -185,6 +185,6 @@ func (s *ZBus) ReloadTimer() {
 		var expr string
 		var single string
 		rows.Scan(&name, &expr, &single)
-		s.timer([]string{"Timer", name, expr, single}, nil) //["Timer", Topic, expr, a|x]
+		s.timer([]string{"timer", name, expr, single}, nil) //["timer", Topic, expr, a|x]
 	}
 }
