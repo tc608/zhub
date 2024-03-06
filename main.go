@@ -36,7 +36,10 @@ func main() {
 			return
 		}
 
-		cli, err := cmd.Create("server-local", addr, "server-admin", adminToken) // 创建客户端连接
+		cli := cmd.ZHubClient{}
+		err = cli.Initx("server-local", addr, "server-admin", adminToken)
+
+		// cli, err := cmd.Create("server-local", addr, "server-admin", adminToken) // 创建客户端连接
 		if err != nil {
 			log.Println(err) // 如果连接失败则打印错误信息
 			return

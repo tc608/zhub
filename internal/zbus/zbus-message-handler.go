@@ -98,7 +98,7 @@ func messageHandler(v Message) {
 	switch cmd {
 	case "auth":
 		userid, err := AuthManager.GetUserIdByToken(rcmd[1])
-		if err != nil {
+		if err != nil && Conf.Service.Auth {
 			c.send("-Error: " + err.Error())
 			return
 		}
