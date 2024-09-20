@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"zhub/cmd"
 	"zhub/internal/config"
 	"zhub/internal/monitor"
@@ -10,15 +12,28 @@ import (
 )
 
 func main() {
-	var isCliMode bool                                           // 是否以客户端模式运行的标志
-	var rcmd string                                              // 客户端模式下运行的命令
-	flag.BoolVar(&isCliMode, "cli", false, "run as client mode") // 定义 cli 参数
-	flag.StringVar(&rcmd, "r", "", "run as client mode")         // 定义 r 参数
-	flag.Parse()                                                 // 解析命令行参数
+	// 命令查询版本号
+	versionFlag := flag.Bool("version", false, "Display the version")
+	vFlag := flag.Bool("v", false, "Display the version")
+	VFlag := flag.Bool("V", false, "Display the version")
+
+	isCliMode := flag.Bool("cli", false, "Run as client mode") // 客户端模式参数
+	rcmd := flag.String("r", "", "Run command in client mode") // 客户端命令参数
+
+	// 解析命令行参数
+	flag.Parse()
+
+	// 检查是否有版本参数, 如果有则输出版本号并退出
+	if *versionFlag || *vFlag || *VFlag {
+		fmt.Printf("Version: %s\n", monitor.Version)
+		os.Exit(0) // 输出后退出
+	}
 
 	conf := config.ReadConfig() // 读取配置文件
 	addr := conf.Service.Addr   // 获取服务地址
 	config.InitLog(conf.Log)    // 初始化日志配置
+	// 输出版本号
+	log.Println("ZHub version:", monitor.Version)
 
 	{
 		/*
@@ -29,7 +44,7 @@ func main() {
 			}*/
 	}
 
-	if rcmd != "" { // 如果指定了客户端命令
+	if *rcmd != "" { // 如果指定了客户端命令
 		adminToken, err := zbus.AuthManager.AdminToken() // 认证信息
 		if err != nil {
 			log.Fatal(err) // Configuration error, stop the client from running.
@@ -45,7 +60,7 @@ func main() {
 			return
 		}
 		defer cli.Close() // 延迟关闭客户端连接
-		switch rcmd {
+		switch *rcmd {
 		case "timer":
 			cli.Cmd("reload-timer")
 		case "shutdown", "stop":
@@ -53,7 +68,7 @@ func main() {
 		}
 		return
 	}
-	if isCliMode {
+	if *isCliMode {
 		cmd.ClientRun(addr) // 客户端运行
 	} else {
 		go monitor.StartWatch()      // 启动监控协程

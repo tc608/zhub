@@ -8,6 +8,9 @@ import (
 
 var r = gin.Default()
 
+// Version 时间格式化 YYYY.MM.DD-HH.MM.SS
+var Version string
+
 func init() {
 	// 1.日志文件 定期分割归档
 
@@ -25,6 +28,11 @@ func StartWatch() {
 	r.GET("/_/cleanup", func(c *gin.Context) {
 		zbus.Bus.Clearup()
 		c.JSON(http.StatusOK, "+OK")
+	})
+	r.GET("/_/version", func(c *gin.Context) {
+		c.JSON(http.StatusOK, map[string]string{
+			"version": Version,
+		})
 	})
 
 	r.GET("/timer/reload", func(c *gin.Context) {
