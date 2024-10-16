@@ -3,7 +3,9 @@ package config
 import (
 	"github.com/spf13/viper"
 	"log"
+	"net/url"
 	"os"
+	"strings"
 )
 
 type Log struct {
@@ -77,6 +79,14 @@ func ReadConfig() Config {
 		if err := viper.Unmarshal(&conf); err != nil {
 			log.Fatalf("Failed to unmarshal config: %s", err.Error())
 		}
+		// conf.Ztimer.Db.Password  包含 %， 做url 转码
+		if strings.Contains(conf.Ztimer.Db.Password, "%") {
+			unescape, err := url.QueryUnescape(conf.Ztimer.Db.Password)
+			if err == nil {
+				conf.Ztimer.Db.Password = unescape
+			}
+		}
+
 		return conf
 	}
 	// 如果在 /etc/ 目录和当前程序所在目录下均未找到配置文件，则报错
