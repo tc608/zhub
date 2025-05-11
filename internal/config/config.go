@@ -30,6 +30,8 @@ type Config struct {
 			User     string
 			Password string
 			Database string
+			Schema   string
+			Type     string
 		}
 	}
 	Auth map[string]string

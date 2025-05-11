@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq" // 导入 pq 驱动
 	"github.com/robfig/cron"
 	"log"
 	"regexp"
@@ -162,19 +163,38 @@ func (s *ZBus) ReloadTimer() {
 		return
 	}
 
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
-		Conf.Ztimer.Db.User,
-		Conf.Ztimer.Db.Password,
-		Conf.Ztimer.Db.Addr,
-		Conf.Ztimer.Db.Database,
-	))
+	var db *sql.DB
+	var err error
+
+	if Conf.Ztimer.Db.Type == "postgres" {
+		hostPort := strings.Split(Conf.Ztimer.Db.Addr, ":")
+		db, err = sql.Open("postgres", fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=disable",
+			Conf.Ztimer.Db.User,
+			Conf.Ztimer.Db.Password,
+			hostPort[0],
+			hostPort[1],
+			Conf.Ztimer.Db.Database,
+		))
+		// 设置当前会话的 schema
+		_, err = db.Exec("SET search_path TO " + Conf.Ztimer.Db.Schema)
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
+			Conf.Ztimer.Db.User,
+			Conf.Ztimer.Db.Password,
+			Conf.Ztimer.Db.Addr,
+			Conf.Ztimer.Db.Database,
+		))
+	}
 
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	defer db.Close()
-	rows, err := db.Query("SELECT t.`name`, IF(t.`status`=10,t.`expr`,''), IF(t.`single`=1,'a','x') 'single' FROM tasktimer t ORDER BY t.`timerid`")
+	rows, err := db.Query("SELECT t.`name`, IF(t.`status`=10,t.`expr`,''), IF(t.`single`=1,'a','x') single FROM tasktimer t ORDER BY t.`timerid`")
 	if err != nil {
 		log.Println(err)
 		return
